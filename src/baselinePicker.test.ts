@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildCommitSection,
+	buildMergeBasePresets,
 	buildPickItems,
 	buildPresetItems,
 	buildRefSection,
+	detectMergeBaseCandidates,
 	sortRefsByName,
 } from './baselinePicker';
 import { RefType, type Ref } from './git/api';
@@ -99,8 +101,49 @@ describe('buildCommitSection', () => {
 	});
 });
 
+describe('detectMergeBaseCandidates', () => {
+	it('returns locally-named default branches first', () => {
+		const refs = [
+			ref({ name: 'main', type: RefType.Head }),
+			ref({ name: 'origin/main', type: RefType.RemoteHead }),
+		];
+		expect(detectMergeBaseCandidates(refs, 'feature/x')).toEqual(['main']);
+	});
+
+	it('falls back to origin/<name> when no local matches', () => {
+		const refs = [ref({ name: 'origin/master', type: RefType.RemoteHead })];
+		expect(detectMergeBaseCandidates(refs, 'feature/x')).toEqual(['origin/master']);
+	});
+
+	it('excludes the current branch', () => {
+		const refs = [
+			ref({ name: 'main', type: RefType.Head }),
+			ref({ name: 'develop', type: RefType.Head }),
+		];
+		expect(detectMergeBaseCandidates(refs, 'main')).toEqual(['develop']);
+	});
+
+	it('returns [] when no default-branch candidates exist', () => {
+		expect(detectMergeBaseCandidates([], 'feature/x')).toEqual([]);
+	});
+});
+
+describe('buildMergeBasePresets', () => {
+	it('returns [] for no candidates', () => {
+		expect(buildMergeBasePresets([])).toEqual([]);
+	});
+
+	it('builds a Scopes separator + one row per candidate', () => {
+		const items = buildMergeBasePresets(['main', 'origin/develop']);
+		expect(items[0].label).toBe('Scopes');
+		expect(items[1].mergeBaseTarget).toBe('main');
+		expect(items[1].action).toBe('merge-base');
+		expect(items[2].mergeBaseTarget).toBe('origin/develop');
+	});
+});
+
 describe('buildPickItems', () => {
-	it('composes presets + branches + tags + remotes + commits', () => {
+	it('composes presets + merge-bases + branches + tags + remotes + commits', () => {
 		const items = buildPickItems({
 			currentRef: 'v1.0.0',
 			refs: [
@@ -109,10 +152,12 @@ describe('buildPickItems', () => {
 				ref({ name: 'origin/main', type: RefType.RemoteHead }),
 			],
 			recentCommits: [commit()],
+			mergeBaseCandidates: ['main'],
 		});
 		const separators = items.filter((i) => i.kind === -1).map((i) => i.label);
 		expect(separators).toEqual([
 			'Presets',
+			'Scopes',
 			'Branches',
 			'Tags',
 			'Remote branches',
@@ -125,6 +170,7 @@ describe('buildPickItems', () => {
 			currentRef: undefined,
 			refs: [],
 			recentCommits: [],
+			mergeBaseCandidates: [],
 		});
 		const separators = items.filter((i) => i.kind === -1).map((i) => i.label);
 		expect(separators).toEqual(['Presets']);

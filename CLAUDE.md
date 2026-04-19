@@ -27,17 +27,22 @@ A VS Code extension that pairs a customizable `QuickDiffProvider` (pick any git 
 
 Everything is wired in `src/extension.ts` at activation. Each cooperating piece has a single responsibility and its own module so tests and refactors stay local:
 
-1. **`BaselineStore` (`src/baseline.ts`)** — single source of truth for the user-selected git ref. Persists in `workspaceState` under `timeTraveller.baselineRef` and emits `onDidChange`. Everything that cares about the baseline subscribes here; do not read `workspaceState` directly.
+1. **`BaselineStore` (`src/baseline.ts`)** — single source of truth for the user-selected git ref. Two scopes: **global** (workspace-wide, memento key `timeTraveller.baselineRef`) and **per-file** (URI-keyed map under `timeTraveller.baselineRefsByFile`). `get(uri)` returns the per-file override if present, else global, else undefined. `set(ref)` updates the global slot; `setForFile(uri, ref)` updates the per-file slot; `clearForFile(uri)` removes an override without touching global. Emits a tagged `BaselineChange` (`{ scope: 'global' | 'file', uri?, ref }`) so consumers can target their refreshes. Everything that cares about the baseline subscribes here; do not read `workspaceState` directly.
 
-2. **`TimeTravellerQuickDiff` (`src/quickDiff.ts`)** — implements **both** `QuickDiffProvider` _and_ `TextDocumentContentProvider` on the same class, bound to the custom `git-time-traveller:` URI scheme. `provideOriginalResource(fileUri)` returns `git-time-traveller:/abs/path?ref=<encoded>` — the ref lives in the query string, not class state, so concurrent editors with different baselines work. `makeTimeTravellerUri(repoRoot, relPath, ref)` is the shared helper for building those URIs from elsewhere (e.g. the history panel). When the baseline changes the provider re-fires `onDidChange` for every open `git-time-traveller:` doc so gutter decorations refresh without reloading.
+2. **`TimeTravellerQuickDiff` (`src/quickDiff.ts`)** — implements **both** `QuickDiffProvider` _and_ `TextDocumentContentProvider` on the same class, bound to the custom `git-time-traveller:` URI scheme. **Two URI shapes:**
+   - **Live-baseline URI** (no query) — returned by `provideOriginalResource`. Its content is resolved against `BaselineStore` at read time via the pure `resolveRefForUri` helper. When the store fires `onDidChange`, we refire for the matching URI and VS Code re-reads fresh content. This is what drives gutter decorations.
+   - **Explicit-ref URI** (`?ref=<sha>`) — built by `makeTimeTravellerUri(repoRoot, relPath, ref)`. The ref is pinned in the query and immune to baseline changes. Used by the history panel for "Open at revision" and diff-at-commit flows.
+     The `onDidChange` listener filters out explicit-ref URIs and narrows global-scope changes to all live URIs, file-scope changes to just the matching URI path.
 
-3. **Baseline QuickPick (`src/baselinePicker.ts`)** — assembles a sectioned `QuickPick` (Presets · Branches · Tags · Remote branches · Recent commits) from the built-in Git extension API (see `src/git/api.ts`) plus a `logRecent` CLI fallback. Returns a tagged union (`{ kind: 'ref' | 'clear' | 'cancel' }`) so the caller never has to disambiguate undefined. The item builders (`buildPresetItems`, `buildRefSection`, `buildCommitSection`, `buildPickItems`) are pure and tested in isolation.
+3. **Baseline QuickPick (`src/baselinePicker.ts`)** — assembles a sectioned `QuickPick` (Presets · Scopes · Branches · Tags · Remote branches · Recent commits) from the built-in Git extension API (see `src/git/api.ts`) plus a `logRecent` CLI fallback. The Scopes section surfaces "Merge base with `<default-branch>`" rows via `detectMergeBaseCandidates`; on pick, `getMergeBase` computes the fork-point SHA. Returns a tagged union (`{ kind: 'ref' | 'clear' | 'cancel' }`) so the caller never has to disambiguate undefined. The item builders are pure and tested in isolation.
 
-4. **File history panel (`src/history/*`)** — a `TreeDataProvider` backed by `git log --follow`, surfaced in the Time Traveller activity bar container. `service.ts` exposes `getFileHistory(uri)` with a pure `toHistoryEntry` transform; `provider.ts` renders each commit via pure helpers (`iconIdFor`, `descriptionFor`, `buildTooltipMarkdown`); `view.ts` wires the tree view, active-editor listener, and commands. Primary click sets the commit as the quick-diff baseline via `BaselineStore`.
+4. **File history panel (`src/history/*`)** — a `TreeDataProvider` backed by `git log --follow`, surfaced in the Time Traveller activity bar container. `service.ts` exposes `getFileHistory(uri)` with a pure `toHistoryEntry` transform; `provider.ts` renders each commit via pure helpers (`iconIdFor`, `descriptionFor`, `buildTooltipMarkdown`) and uses `baseline.get(currentFileUri)` for the "is this the baseline" marker so per-file overrides light up the right row; `view.ts` wires the tree view, active-editor listener, and commands. **Primary click sets the commit as the _per-file_ baseline** (the panel is file-scoped); the context menu has "Set as workspace baseline" as an escape hatch.
 
-5. **`@blame` chat participant (`src/chat.ts`)** — registered via `vscode.chat.createChatParticipant('timeTraveller.blame', …)`. The id **must** match `contributes.chatParticipants[].id` in `package.json`. Selects `{ vendor: 'copilot', family: 'gpt-4o' }` via `vscode.lm.selectChatModels`; degrades gracefully when no model is available.
+5. **Multi-baseline commands (`src/multiBaseline.ts`)** — `stepBaseline(direction)` moves the active file's per-file baseline ±1 commit along its `git log --follow`, backed by the pure `computeStep` in `src/stepping.ts`. `openDiffWithBaseline()` opens a side-by-side diff editor using the effective baseline as the left side. Both write to `BaselineStore.setForFile` (stepping is always file-scoped).
 
-6. **Git layer (`src/git/`)** — `api.ts` wraps the built-in Git extension (`vscode.extensions.getExtension('vscode.git')`); `cli.ts` is a thin shell-out fallback (`git show`, `git log`) with pure parsing helpers (`parseLog`, `shellQuote`) exported for tests. Prefer the API where it suffices; keep `cli.ts` as the single choke point for shell-based git work.
+6. **`@blame` chat participant (`src/chat.ts`)** — registered via `vscode.chat.createChatParticipant('timeTraveller.blame', …)`. The id **must** match `contributes.chatParticipants[].id` in `package.json`. Selects `{ vendor: 'copilot', family: 'gpt-4o' }` via `vscode.lm.selectChatModels`; degrades gracefully when no model is available.
+
+7. **Git layer (`src/git/`)** — `api.ts` wraps the built-in Git extension (`vscode.extensions.getExtension('vscode.git')`); `cli.ts` is a thin shell-out fallback (`git show`, `git log`, `git merge-base`) with pure parsing helpers (`parseLog`, `shellQuote`) exported for tests. Prefer the API where it suffices; keep `cli.ts` as the single choke point for shell-based git work.
 
 ## Testing
 
@@ -60,7 +65,12 @@ When you add a module under `src/`:
 
 ## Contribution points (package.json)
 
-- `commands`: `timeTraveller.pickBaseline`, `clearBaseline`, `showCurrentBaseline`, and the `timeTraveller.history.*` family (refresh, setBaseline, openAtRevision, openDiff, askBlame, copySha, copySubject). History commands are hidden from the Command Palette via `menus.commandPalette[].when: 'false'` — they only make sense when invoked from a tree row.
+- `commands`:
+  - **Global baseline**: `timeTraveller.pickBaseline`, `clearBaseline`, `showCurrentBaseline`
+  - **Per-file baseline**: `timeTraveller.pickBaselineForFile`, `clearBaselineForFile`
+  - **Stepping**: `timeTraveller.stepBaselineBackward` (older), `stepBaselineForward` (newer)
+  - **Diff**: `timeTraveller.openDiffWithBaseline` (side-by-side editor)
+  - **History panel**: `timeTraveller.history.*` family (refresh, setBaseline, setAsGlobalBaseline, openAtRevision, openDiff, askBlame, copySha, copySubject). Hidden from the Command Palette via `menus.commandPalette[].when: 'false'` — they only make sense when invoked from a tree row.
 - `viewsContainers.activitybar`: `timeTraveller` (icon: `resources/history.svg`)
 - `views["timeTraveller"]`: `timeTraveller.fileHistory`
 - `chatParticipants`: `timeTraveller.blame` with `/why` and `/story` slash commands (handler does not yet branch on `request.command` — add that when implementing them).

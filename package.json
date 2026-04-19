@@ -46,6 +46,37 @@
         "category": "Time Traveller"
       },
       {
+        "command": "timeTraveller.pickBaselineForFile",
+        "title": "Time Traveller: Pick Diff Baseline for This File…",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.clearBaselineForFile",
+        "title": "Time Traveller: Clear Per-File Baseline",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.stepBaselineBackward",
+        "title": "Time Traveller: Step Baseline Backward (older)",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.stepBaselineForward",
+        "title": "Time Traveller: Step Baseline Forward (newer)",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.openDiffWithBaseline",
+        "title": "Time Traveller: Open Diff with Baseline",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.history.setAsGlobalBaseline",
+        "title": "Set as workspace baseline",
+        "category": "Time Traveller",
+        "icon": "$(globe)"
+      },
+      {
         "command": "timeTraveller.history.refresh",
         "title": "Refresh",
         "category": "Time Traveller",
@@ -129,6 +160,11 @@
           "group": "1_baseline@1"
         },
         {
+          "command": "timeTraveller.history.setAsGlobalBaseline",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "1_baseline@2"
+        },
+        {
           "command": "timeTraveller.history.openAtRevision",
           "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
           "group": "2_open@1"
@@ -181,6 +217,10 @@
         },
         {
           "command": "timeTraveller.history.copySubject",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.setAsGlobalBaseline",
           "when": "false"
         }
       ]

@@ -1,16 +1,20 @@
 import * as vscode from 'vscode';
 import { findRepository, RefType, type Ref, type Repository } from './git/api';
-import { logRecent, type RawLogRecord } from './git/cli';
+import { getMergeBase, logRecent, type RawLogRecord } from './git/cli';
 
 export interface RefPick extends vscode.QuickPickItem {
 	ref?: string;
-	action?: 'custom' | 'clear';
+	action?: 'custom' | 'clear' | 'merge-base';
+	mergeBaseTarget?: string;
 }
 
 export interface BaselinePickResult {
 	kind: 'ref' | 'clear' | 'cancel';
 	ref?: string;
 }
+
+/** Common default-branch names we'll offer a "merge base with…" preset for. */
+export const DEFAULT_BRANCH_CANDIDATES = ['main', 'master', 'develop', 'trunk'] as const;
 
 export function sortRefsByName(refs: Ref[]): Ref[] {
 	return [...refs].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
@@ -34,6 +38,46 @@ export function buildPresetItems(currentRef: string | undefined): RefPick[] {
 		action: 'custom',
 	});
 	return items;
+}
+
+/**
+ * Given the repo's refs and the current HEAD branch name, return default-branch
+ * targets (local preferred, falling back to `origin/<name>`) that aren't the
+ * current branch itself. Used to build the "Merge base with …" presets.
+ */
+export function detectMergeBaseCandidates(
+	refs: Ref[],
+	currentBranch: string | undefined,
+): string[] {
+	const branchNames = new Set(
+		refs.filter((r) => r.type === RefType.Head && r.name).map((r) => r.name!),
+	);
+	const remoteNames = new Set(
+		refs.filter((r) => r.type === RefType.RemoteHead && r.name).map((r) => r.name!),
+	);
+	const out: string[] = [];
+	for (const name of DEFAULT_BRANCH_CANDIDATES) {
+		if (name === currentBranch) continue;
+		if (branchNames.has(name)) {
+			out.push(name);
+		} else if (remoteNames.has(`origin/${name}`)) {
+			out.push(`origin/${name}`);
+		}
+	}
+	return out;
+}
+
+export function buildMergeBasePresets(candidates: string[]): RefPick[] {
+	if (candidates.length === 0) return [];
+	return [
+		{ label: 'Scopes', kind: vscode.QuickPickItemKind.Separator },
+		...candidates.map<RefPick>((target) => ({
+			label: `$(git-merge) Merge base with ${target}`,
+			description: 'fork point for PR-style diff',
+			action: 'merge-base',
+			mergeBaseTarget: target,
+		})),
+	];
 }
 
 const REF_SECTION_CONFIG: Record<
@@ -78,9 +122,11 @@ export function buildPickItems(input: {
 	currentRef: string | undefined;
 	refs: Ref[];
 	recentCommits: RawLogRecord[];
+	mergeBaseCandidates: string[];
 }): RefPick[] {
 	return [
 		...buildPresetItems(input.currentRef),
+		...buildMergeBasePresets(input.mergeBaseCandidates),
 		...buildRefSection('branch', input.refs),
 		...buildRefSection('tag', input.refs),
 		...buildRefSection('remote', input.refs),
@@ -93,10 +139,14 @@ export async function pickBaselineRef(currentRef: string | undefined): Promise<B
 	const repo = await (activeUri ? findRepository(activeUri) : firstRepoFromWorkspace());
 
 	const recentCommits = repo ? await logRecent(repo.rootUri.fsPath, 30) : [];
+	const mergeBaseCandidates = repo
+		? detectMergeBaseCandidates(repo.state.refs, repo.state.HEAD?.name)
+		: [];
 	const items = buildPickItems({
 		currentRef,
 		refs: repo?.state.refs ?? [],
 		recentCommits,
+		mergeBaseCandidates,
 	});
 
 	const placeholder = repo
@@ -119,6 +169,16 @@ export async function pickBaselineRef(currentRef: string | undefined): Promise<B
 		});
 		const trimmed = typed?.trim();
 		return trimmed && trimmed.length > 0 ? { kind: 'ref', ref: trimmed } : { kind: 'cancel' };
+	}
+	if (picked.action === 'merge-base' && picked.mergeBaseTarget && repo) {
+		const sha = await getMergeBase(repo.rootUri.fsPath, 'HEAD', picked.mergeBaseTarget);
+		if (!sha) {
+			vscode.window.showWarningMessage(
+				`Could not compute merge-base between HEAD and ${picked.mergeBaseTarget}.`,
+			);
+			return { kind: 'cancel' };
+		}
+		return { kind: 'ref', ref: sha };
 	}
 	return picked.ref ? { kind: 'ref', ref: picked.ref } : { kind: 'cancel' };
 }

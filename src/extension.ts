@@ -3,6 +3,7 @@ import { BaselineStore } from './baseline';
 import { pickBaselineRef } from './baselinePicker';
 import { registerBlameParticipant } from './chat';
 import { registerHistoryView } from './history/view';
+import { openDiffWithBaseline, stepBaseline } from './multiBaseline';
 import { TimeTravellerQuickDiff, TIME_TRAVELLER_SCHEME } from './quickDiff';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -24,18 +25,27 @@ export function activate(context: vscode.ExtensionContext): void {
 	const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
 	statusItem.command = 'timeTraveller.pickBaseline';
 	const refreshStatus = () => {
-		const ref = baseline.get();
+		const activeUri = vscode.window.activeTextEditor?.document.uri;
+		const inFile = activeUri?.scheme === 'file';
+		const ref = inFile ? baseline.get(activeUri) : baseline.getGlobal();
+		const perFile = inFile && baseline.hasFileOverride(activeUri);
 		const label = ref ? formatRefForStatus(ref) : 'HEAD';
-		statusItem.text = `$(git-commit) baseline: ${label}`;
-		statusItem.tooltip = 'Click to pick a different git ref as the quick-diff baseline.';
+		statusItem.text = `$(git-commit) baseline: ${label}${perFile ? ' (file)' : ''}`;
+		statusItem.tooltip = perFile
+			? 'Per-file baseline for this document. Click to change.'
+			: 'Workspace baseline. Click to change.';
 		statusItem.show();
 	};
 	refreshStatus();
-	context.subscriptions.push(statusItem, baseline.onDidChange(refreshStatus));
+	context.subscriptions.push(
+		statusItem,
+		baseline.onDidChange(refreshStatus),
+		vscode.window.onDidChangeActiveTextEditor(refreshStatus),
+	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('timeTraveller.pickBaseline', async () => {
-			const result = await pickBaselineRef(baseline.get());
+			const result = await pickBaselineRef(baseline.getGlobal());
 			if (result.kind === 'cancel') return;
 			if (result.kind === 'clear') {
 				await baseline.set(undefined);
@@ -47,9 +57,42 @@ export function activate(context: vscode.ExtensionContext): void {
 			await baseline.set(undefined);
 		}),
 		vscode.commands.registerCommand('timeTraveller.showCurrentBaseline', () => {
-			const ref = baseline.get();
-			vscode.window.showInformationMessage(`Time Traveller baseline: ${ref ?? 'HEAD'}`);
+			const activeUri = vscode.window.activeTextEditor?.document.uri;
+			const inFile = activeUri?.scheme === 'file';
+			const effective = inFile ? baseline.get(activeUri) : baseline.getGlobal();
+			const perFile = inFile && baseline.hasFileOverride(activeUri);
+			vscode.window.showInformationMessage(
+				`Time Traveller baseline: ${effective ?? 'HEAD'}${perFile ? ' (per-file)' : ''}`,
+			);
 		}),
+		vscode.commands.registerCommand('timeTraveller.pickBaselineForFile', async () => {
+			const uri = vscode.window.activeTextEditor?.document.uri;
+			if (!uri || uri.scheme !== 'file') {
+				vscode.window.showInformationMessage('Open a file to set a per-file baseline.');
+				return;
+			}
+			const result = await pickBaselineRef(baseline.getForFile(uri));
+			if (result.kind === 'cancel') return;
+			if (result.kind === 'clear') {
+				await baseline.clearForFile(uri);
+				return;
+			}
+			await baseline.setForFile(uri, result.ref);
+		}),
+		vscode.commands.registerCommand('timeTraveller.clearBaselineForFile', async () => {
+			const uri = vscode.window.activeTextEditor?.document.uri;
+			if (!uri || uri.scheme !== 'file') return;
+			await baseline.clearForFile(uri);
+		}),
+		vscode.commands.registerCommand('timeTraveller.stepBaselineBackward', () =>
+			stepBaseline(baseline, 'back'),
+		),
+		vscode.commands.registerCommand('timeTraveller.stepBaselineForward', () =>
+			stepBaseline(baseline, 'forward'),
+		),
+		vscode.commands.registerCommand('timeTraveller.openDiffWithBaseline', () =>
+			openDiffWithBaseline(baseline),
+		),
 	);
 
 	context.subscriptions.push(registerHistoryView(baseline));

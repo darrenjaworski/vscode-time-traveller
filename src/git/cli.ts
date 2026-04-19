@@ -60,6 +60,23 @@ export async function logRecent(repoRoot: string, maxCount: number): Promise<Raw
 	}
 }
 
+export async function getMergeBase(
+	repoRoot: string,
+	ref1: string,
+	ref2: string,
+): Promise<string | undefined> {
+	try {
+		const { stdout } = await execAsync(`git merge-base ${shellQuote(ref1)} ${shellQuote(ref2)}`, {
+			cwd: repoRoot,
+			maxBuffer: MAX_BUFFER,
+		});
+		const trimmed = stdout.trim();
+		return trimmed.length > 0 ? trimmed : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export function parseLog(stdout: string): RawLogRecord[] {
 	return stdout
 		.split('\x1E')

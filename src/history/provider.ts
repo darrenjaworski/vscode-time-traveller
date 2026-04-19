@@ -47,6 +47,7 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 	private context: HistoryContext | undefined;
 	private loading = false;
 	private loadedForUri: string | undefined;
+	private currentFileUri: vscode.Uri | undefined;
 
 	constructor(private readonly baseline: BaselineStore) {
 		baseline.onDidChange(() => this.changeEmitter.fire());
@@ -57,12 +58,14 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		if (!target || target.scheme !== 'file') {
 			this.context = undefined;
 			this.loadedForUri = undefined;
+			this.currentFileUri = undefined;
 			this.changeEmitter.fire();
 			return;
 		}
 		if (this.loadedForUri === target.toString() && !uri) {
 			return;
 		}
+		this.currentFileUri = target;
 		this.loading = true;
 		this.changeEmitter.fire();
 		try {
@@ -90,7 +93,7 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		const tooltip = new vscode.MarkdownString(buildTooltipMarkdown(entry));
 		tooltip.isTrusted = false;
 		item.tooltip = tooltip;
-		item.iconPath = new vscode.ThemeIcon(iconIdFor(entry, this.baseline.get()));
+		item.iconPath = new vscode.ThemeIcon(iconIdFor(entry, this.baseline.get(this.currentFileUri)));
 		item.contextValue = 'timeTraveller.history.entry';
 		item.command = {
 			command: 'timeTraveller.history.setBaseline',

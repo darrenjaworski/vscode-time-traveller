@@ -120,6 +120,8 @@ export const window = {
 	showQuickPick: vi.fn(async () => undefined as unknown),
 	showInformationMessage: vi.fn(async () => undefined as string | undefined),
 	showErrorMessage: vi.fn(async () => undefined as string | undefined),
+	showWarningMessage: vi.fn(async () => undefined as string | undefined),
+	setStatusBarMessage: vi.fn(() => ({ dispose: vi.fn() })),
 	createStatusBarItem: vi.fn(() => ({
 		text: '',
 		tooltip: '',

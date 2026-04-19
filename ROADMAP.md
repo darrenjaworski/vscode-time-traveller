@@ -24,13 +24,14 @@ A VS Code extension that marries git history with LLM-powered narrative. Pick _a
 
 Goal: user can pick a ref once, and the gutter reflects diffs against that ref until cleared.
 
-- [ ] Integrate with the built-in `vscode.git` extension API to enumerate refs (branches, tags, commits, stashes)
-- [ ] QuickPick UI: recent commits, branches, tags, stashes, "Enter SHA…"
-- [ ] `TextDocumentContentProvider` that resolves `git-time-traveller:<ref>/<path>` → file contents at that ref
-- [ ] `QuickDiffProvider.provideOriginalResource` returns the custom URI for the active baseline
-- [ ] Status bar item showing the active baseline; click to change or clear
-- [ ] Per-workspace persistence of the chosen baseline
-- [ ] Fallback when ref is unreachable / file did not exist at that ref
+- [x] Integrate with the built-in `vscode.git` extension API to enumerate refs (branches, tags, commits)
+- [ ] Stash enumeration — Git extension API doesn't expose it; needs a `git stash list` CLI fallback
+- [x] QuickPick UI: recent commits, branches, tags, "Enter SHA…"
+- [x] `TextDocumentContentProvider` that resolves `git-time-traveller:<path>` → file contents at the effective ref
+- [x] `QuickDiffProvider.provideOriginalResource` returns the custom URI for the active baseline
+- [x] Status bar item showing the active baseline; click to change or clear (now indicates `(file)` when a per-file override is in effect)
+- [x] Per-workspace persistence of the chosen baseline
+- [x] Fallback when ref is unreachable / file did not exist at that ref — `git show` returns `''`, diff treats as pure-add
 
 ## Phase 1.5 — File history panel (MVP)
 
@@ -115,11 +116,11 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 
 ## Phase 2 — Multi-baseline & scoping
 
-- [ ] Per-file baseline overrides (e.g. compare `src/foo.ts` against `main`, but `src/bar.ts` against a stash)
-- [ ] "Compare working tree to merge-base with `<branch>`" preset
-- [ ] "Compare to last release tag" preset
-- [ ] "Stepping" commands: move baseline ±1 commit along `git log -- <file>`
-- [ ] Diff editor shortcut: open `git-time-traveller:` URI side-by-side
+- [x] Per-file baseline overrides (e.g. compare `src/foo.ts` against `main`, but `src/bar.ts` against a stash) — `BaselineStore.setForFile` + tagged `BaselineChange` event; live-baseline TT URIs carry no query so per-file changes re-read fresh content
+- [x] "Compare working tree to merge-base with `<branch>`" preset — auto-detects `main`/`master`/`develop`/`trunk` (local, falling back to `origin/`) and computes `git merge-base HEAD <target>` on pick
+- [ ] "Compare to last release tag" preset — deferred, needs semver-aware tag sort
+- [x] "Stepping" commands: move baseline ±1 commit along `git log -- <file>` — `timeTraveller.stepBaselineBackward` / `.stepBaselineForward`, writes to the per-file slot
+- [x] Diff editor shortcut: open `git-time-traveller:` URI side-by-side — `timeTraveller.openDiffWithBaseline`
 
 ## Phase 3 — `@blame` chat participant (narrative history)
 

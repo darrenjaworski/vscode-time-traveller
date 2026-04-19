@@ -28,8 +28,19 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 	disposables.push(
 		vscode.commands.registerCommand('timeTraveller.history.refresh', () => provider.refresh()),
 
+		// Primary click: set this commit as the per-file baseline (panel is file-scoped).
 		vscode.commands.registerCommand(
 			'timeTraveller.history.setBaseline',
+			async (node: HistoryNode) => {
+				if (node?.kind !== 'entry') return;
+				const fileUri = fileUriOf(node);
+				await baseline.setForFile(fileUri, node.entry.sha);
+			},
+		),
+
+		// Context-menu escape hatch for promoting a commit to the workspace baseline.
+		vscode.commands.registerCommand(
+			'timeTraveller.history.setAsGlobalBaseline',
 			async (node: HistoryNode) => {
 				if (node?.kind !== 'entry') return;
 				await baseline.set(node.entry.sha);
@@ -48,7 +59,7 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 		vscode.commands.registerCommand('timeTraveller.history.openDiff', async (node: HistoryNode) => {
 			if (node?.kind !== 'entry') return;
 			const left = makeTimeTravellerUri(node.repoRoot, node.relPath, node.entry.sha);
-			const right = vscode.Uri.file(workingTreePath(node.repoRoot, node.relPath));
+			const right = fileUriOf(node);
 			const title = `${node.relPath} (${node.entry.shortSha}) ↔ Working Tree`;
 			await vscode.commands.executeCommand('vscode.diff', left, right, title);
 		}),
@@ -76,8 +87,8 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 	return vscode.Disposable.from(...disposables);
 }
 
-function workingTreePath(repoRoot: string, relPath: string): string {
-	return `${repoRoot}/${relPath}`;
+function fileUriOf(node: { repoRoot: string; relPath: string }): vscode.Uri {
+	return vscode.Uri.file(`${node.repoRoot}/${node.relPath}`);
 }
 
 function debounce<F extends (...args: never[]) => void>(fn: F, ms: number): F {
