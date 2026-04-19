@@ -161,6 +161,7 @@ export const chat = {
 
 export const env = {
 	clipboard: { writeText: vi.fn(async () => {}) },
+	openExternal: vi.fn(async () => true),
 };
 
 export const extensions = {

@@ -1,10 +1,19 @@
 import * as vscode from 'vscode';
 import { BaselineStore } from '../baseline';
+import { isFileDirty, relativeTo } from '../git/cli';
+import { findRepository } from '../git/api';
 import { relativeTime } from './format';
 import { getFileHistory, type HistoryContext, type HistoryEntry } from './service';
 
 export type HistoryNode =
-	| { kind: 'entry'; entry: HistoryEntry; repoRoot: string; relPath: string }
+	| {
+			kind: 'entry';
+			entry: HistoryEntry;
+			repoRoot: string;
+			relPath: string;
+			previousSha?: string;
+	  }
+	| { kind: 'workingTree'; repoRoot: string; relPath: string }
 	| { kind: 'placeholder'; message: string };
 
 export const PLACEHOLDER_MESSAGES = {
@@ -13,6 +22,8 @@ export const PLACEHOLDER_MESSAGES = {
 	loading: 'Loading history…',
 } as const;
 
+export const WORKING_TREE_LABEL = '● Working tree (uncommitted changes)';
+
 export function iconIdFor(entry: HistoryEntry, currentBaseline: string | undefined): string {
 	if (currentBaseline === entry.sha) return 'target';
 	if (entry.isMerge) return 'git-merge';
@@ -20,7 +31,8 @@ export function iconIdFor(entry: HistoryEntry, currentBaseline: string | undefin
 }
 
 export function descriptionFor(entry: HistoryEntry, now: Date = new Date()): string {
-	return `${entry.authorName} · ${relativeTime(entry.authorDate, now)}`;
+	const base = `${entry.authorName} · ${relativeTime(entry.authorDate, now)}`;
+	return entry.renamedFrom ? `${base} · renamed from ${entry.renamedFrom}` : base;
 }
 
 export function escapeMarkdown(value: string): string {
@@ -36,6 +48,9 @@ export function buildTooltipMarkdown(entry: HistoryEntry): string {
 	parts.push(
 		`\`${entry.shortSha}\` · ${escapeMarkdown(entry.authorName)} <${escapeMarkdown(entry.authorEmail)}>\n\n`,
 	);
+	if (entry.renamedFrom) {
+		parts.push(`Renamed from \`${escapeMarkdown(entry.renamedFrom)}\`\n\n`);
+	}
 	parts.push(entry.authorDate.toISOString());
 	return parts.join('');
 }
@@ -48,6 +63,7 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 	private loading = false;
 	private loadedForUri: string | undefined;
 	private currentFileUri: vscode.Uri | undefined;
+	private isDirty = false;
 
 	constructor(private readonly baseline: BaselineStore) {
 		baseline.onDidChange(() => this.changeEmitter.fire());
@@ -59,6 +75,7 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 			this.context = undefined;
 			this.loadedForUri = undefined;
 			this.currentFileUri = undefined;
+			this.isDirty = false;
 			this.changeEmitter.fire();
 			return;
 		}
@@ -70,11 +87,20 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		this.changeEmitter.fire();
 		try {
 			this.context = await getFileHistory(target);
+			this.isDirty = await this.checkDirty(target);
 			this.loadedForUri = target.toString();
 		} finally {
 			this.loading = false;
 			this.changeEmitter.fire();
 		}
+	}
+
+	private async checkDirty(uri: vscode.Uri): Promise<boolean> {
+		const repo = await findRepository(uri);
+		if (!repo) return false;
+		const rel = relativeTo(repo.rootUri.fsPath, uri.fsPath);
+		if (!rel || rel.startsWith('..')) return false;
+		return isFileDirty(repo.rootUri.fsPath, rel);
 	}
 
 	getCurrentContext(): HistoryContext | undefined {
@@ -85,6 +111,19 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		if (node.kind === 'placeholder') {
 			const item = new vscode.TreeItem(node.message);
 			item.contextValue = 'timeTraveller.history.placeholder';
+			return item;
+		}
+		if (node.kind === 'workingTree') {
+			const item = new vscode.TreeItem(WORKING_TREE_LABEL);
+			item.description = 'not yet committed';
+			item.iconPath = new vscode.ThemeIcon('edit');
+			item.contextValue = 'timeTraveller.history.workingTree';
+			item.tooltip = 'Your local changes to this file since HEAD.';
+			item.command = {
+				command: 'timeTraveller.history.clearFileBaseline',
+				title: 'Compare working tree to HEAD',
+				arguments: [node],
+			};
 			return item;
 		}
 		const { entry } = node;
@@ -113,14 +152,21 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		if (!this.context) {
 			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.idle }];
 		}
-		if (this.context.entries.length === 0) {
+		const ctx = this.context;
+		const workingTreeRow: HistoryNode[] =
+			this.isDirty && ctx.entries.length > 0
+				? [{ kind: 'workingTree', repoRoot: ctx.repoRoot, relPath: ctx.relPath }]
+				: [];
+		if (ctx.entries.length === 0) {
 			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.empty }];
 		}
-		return this.context.entries.map((entry) => ({
+		const entryNodes: HistoryNode[] = ctx.entries.map((entry, idx, arr) => ({
 			kind: 'entry',
 			entry,
-			repoRoot: this.context!.repoRoot,
-			relPath: this.context!.relPath,
+			repoRoot: ctx.repoRoot,
+			relPath: ctx.relPath,
+			previousSha: arr[idx + 1]?.sha,
 		}));
+		return [...workingTreeRow, ...entryNodes];
 	}
 }

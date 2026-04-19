@@ -60,6 +60,58 @@ export async function logRecent(repoRoot: string, maxCount: number): Promise<Raw
 	}
 }
 
+/**
+ * For each commit touching `relPath` (following renames), record the path the
+ * file had at that commit. Used to surface "renamed from X" affordances when
+ * the path changes between adjacent entries in the file's log.
+ */
+export async function logFileRenames(
+	repoRoot: string,
+	relPath: string,
+	maxCount: number,
+): Promise<Map<string, string>> {
+	const marker = '__TT_SHA__';
+	const cmd = `git log --follow --max-count=${maxCount} --name-only --format=${shellQuote(marker + '%H')} -- ${shellQuote(relPath.replace(/\\/g, '/'))}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return parsePathsByCommit(stdout, marker);
+	} catch {
+		return new Map();
+	}
+}
+
+export function parsePathsByCommit(stdout: string, marker: string): Map<string, string> {
+	const out = new Map<string, string>();
+	let currentSha: string | undefined;
+	for (const line of stdout.split('\n')) {
+		if (line.startsWith(marker)) {
+			currentSha = line.slice(marker.length).trim();
+			continue;
+		}
+		const trimmed = line.trim();
+		if (trimmed && currentSha && !out.has(currentSha)) {
+			out.set(currentSha, trimmed);
+		}
+	}
+	return out;
+}
+
+/**
+ * Exit code 0 = clean, 1 = dirty. Any other error (path not in repo, etc.) is
+ * treated as "can't tell" and returns false so we don't render a misleading
+ * working-tree row.
+ */
+export async function isFileDirty(repoRoot: string, relPath: string): Promise<boolean> {
+	const cmd = `git diff --quiet HEAD -- ${shellQuote(relPath.replace(/\\/g, '/'))}`;
+	try {
+		await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return false;
+	} catch (err: unknown) {
+		const code = (err as { code?: number } | undefined)?.code;
+		return code === 1;
+	}
+}
+
 export async function getMergeBase(
 	repoRoot: string,
 	ref1: string,

@@ -33,3 +33,6 @@ jobs:
 
       - name: Compile
         run: npm run compile
+
+      - name: Package (smoke)
+        run: npm run package

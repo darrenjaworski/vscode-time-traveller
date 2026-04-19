@@ -47,6 +47,13 @@ describe('descriptionFor', () => {
 		const now = new Date('2026-04-22T12:00:00Z');
 		expect(descriptionFor(entry(), now)).toBe('Alice · 3 days ago');
 	});
+
+	it('appends "renamed from <path>" when the entry was renamed', () => {
+		const now = new Date('2026-04-22T12:00:00Z');
+		expect(descriptionFor(entry({ renamedFrom: 'src/old.ts' }), now)).toBe(
+			'Alice · 3 days ago · renamed from src/old.ts',
+		);
+	});
 });
 
 describe('escapeMarkdown', () => {
@@ -81,6 +88,12 @@ describe('buildTooltipMarkdown', () => {
 		const md = buildTooltipMarkdown(entry({ subject: '' }));
 		expect(md).toContain('no subject');
 		expect(md).toContain('\\(');
+	});
+
+	it('surfaces "Renamed from <path>" when the entry was renamed', () => {
+		const md = buildTooltipMarkdown(entry({ renamedFrom: 'src/old/path.ts' }));
+		expect(md).toContain('Renamed from');
+		expect(md).toContain('src/old/path\\.ts');
 	});
 });
 

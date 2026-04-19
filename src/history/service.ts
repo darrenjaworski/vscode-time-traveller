@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { findRepository } from '../git/api';
-import { logFile, relativeTo, type RawLogRecord } from '../git/cli';
+import { logFile, logFileRenames, relativeTo, type RawLogRecord } from '../git/cli';
 
 export interface HistoryEntry {
 	sha: string;
@@ -12,6 +12,10 @@ export interface HistoryEntry {
 	authorDate: Date;
 	parents: string[];
 	isMerge: boolean;
+	/** The path this file had *before* this commit, when the path changes
+	 * between this entry and the next (older) one in the log. Presence
+	 * indicates a rename landed in (or was observed entering) this commit. */
+	renamedFrom?: string;
 }
 
 export interface HistoryContext {
@@ -37,14 +41,35 @@ export function toHistoryEntry(record: RawLogRecord): HistoryEntry {
 	};
 }
 
+/**
+ * Given entries (newest → oldest) and a `sha → path` map, annotate each entry
+ * with a `renamedFrom` when the adjacent older entry had a different path.
+ * Pure: mutates and returns the same array so callers can chain.
+ */
+export function applyRenames(
+	entries: HistoryEntry[],
+	pathsBySha: Map<string, string>,
+): HistoryEntry[] {
+	for (let i = 0; i < entries.length - 1; i++) {
+		const cur = pathsBySha.get(entries[i].sha);
+		const next = pathsBySha.get(entries[i + 1].sha);
+		if (cur && next && cur !== next) {
+			entries[i].renamedFrom = next;
+		}
+	}
+	return entries;
+}
+
 export interface HistoryServiceDeps {
 	findRepo: typeof findRepository;
 	log: typeof logFile;
+	renames: typeof logFileRenames;
 }
 
 const defaultDeps: HistoryServiceDeps = {
 	findRepo: findRepository,
 	log: logFile,
+	renames: logFileRenames,
 };
 
 export async function getFileHistory(
@@ -64,6 +89,10 @@ export async function getFileHistory(
 	if (!relPath || relPath.startsWith('..')) {
 		return undefined;
 	}
-	const records = await deps.log(repoRoot, relPath, maxCount);
-	return { repoRoot, relPath, entries: records.map(toHistoryEntry) };
+	const [records, pathsBySha] = await Promise.all([
+		deps.log(repoRoot, relPath, maxCount),
+		deps.renames(repoRoot, relPath, maxCount),
+	]);
+	const entries = applyRenames(records.map(toHistoryEntry), pathsBySha);
+	return { repoRoot, relPath, entries };
 }

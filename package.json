@@ -77,6 +77,23 @@
         "icon": "$(globe)"
       },
       {
+        "command": "timeTraveller.history.openDiffPrev",
+        "title": "Compare with previous revision",
+        "category": "Time Traveller",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "timeTraveller.history.openOnRemote",
+        "title": "Open commit on remote",
+        "category": "Time Traveller",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "timeTraveller.history.clearFileBaseline",
+        "title": "Compare working tree to HEAD",
+        "category": "Time Traveller"
+      },
+      {
         "command": "timeTraveller.history.refresh",
         "title": "Refresh",
         "category": "Time Traveller",
@@ -150,9 +167,14 @@
           "group": "inline@1"
         },
         {
-          "command": "timeTraveller.history.askBlame",
+          "command": "timeTraveller.history.openDiffPrev",
           "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
           "group": "inline@2"
+        },
+        {
+          "command": "timeTraveller.history.askBlame",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "inline@3"
         },
         {
           "command": "timeTraveller.history.setBaseline",
@@ -173,6 +195,16 @@
           "command": "timeTraveller.history.openDiff",
           "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
           "group": "2_open@2"
+        },
+        {
+          "command": "timeTraveller.history.openDiffPrev",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "2_open@3"
+        },
+        {
+          "command": "timeTraveller.history.openOnRemote",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "2_open@4"
         },
         {
           "command": "timeTraveller.history.askBlame",
@@ -221,6 +253,18 @@
         },
         {
           "command": "timeTraveller.history.setAsGlobalBaseline",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.openDiffPrev",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.openOnRemote",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.clearFileBaseline",
           "when": "false"
         }
       ]
