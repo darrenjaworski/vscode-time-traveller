@@ -1,8 +1,17 @@
 import * as vscode from 'vscode';
 import { BaselineStore } from './baseline';
-import { relativeTo, showFileAtRef } from './git';
+import { relativeTo, showFileAtRef } from './git/cli';
 
 export const TIME_TRAVELLER_SCHEME = 'git-time-traveller';
+
+export function makeTimeTravellerUri(repoRoot: string, relPath: string, ref: string): vscode.Uri {
+	const absPath = `${repoRoot}/${relPath.replace(/\\/g, '/')}`;
+	return vscode.Uri.from({
+		scheme: TIME_TRAVELLER_SCHEME,
+		path: absPath,
+		query: `ref=${encodeURIComponent(ref)}`,
+	});
+}
 
 export class TimeTravellerQuickDiff
 	implements vscode.QuickDiffProvider, vscode.TextDocumentContentProvider

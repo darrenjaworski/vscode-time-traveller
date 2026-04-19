@@ -44,8 +44,147 @@
         "command": "timeTraveller.showCurrentBaseline",
         "title": "Time Traveller: Show Current Baseline",
         "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.history.refresh",
+        "title": "Refresh",
+        "category": "Time Traveller",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "timeTraveller.history.setBaseline",
+        "title": "Set as diff baseline",
+        "category": "Time Traveller",
+        "icon": "$(target)"
+      },
+      {
+        "command": "timeTraveller.history.openAtRevision",
+        "title": "Open file at this revision",
+        "category": "Time Traveller",
+        "icon": "$(file)"
+      },
+      {
+        "command": "timeTraveller.history.openDiff",
+        "title": "Compare with working tree",
+        "category": "Time Traveller",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "timeTraveller.history.askBlame",
+        "title": "Ask @blame about this commit",
+        "category": "Time Traveller",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "timeTraveller.history.copySha",
+        "title": "Copy commit SHA",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.history.copySubject",
+        "title": "Copy commit subject",
+        "category": "Time Traveller"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "timeTraveller",
+          "title": "Time Traveller",
+          "icon": "resources/history.svg"
+        }
+      ]
+    },
+    "views": {
+      "timeTraveller": [
+        {
+          "id": "timeTraveller.fileHistory",
+          "name": "File History",
+          "contextualTitle": "Time Traveller"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "timeTraveller.history.refresh",
+          "when": "view == timeTraveller.fileHistory",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "timeTraveller.history.openDiff",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "inline@1"
+        },
+        {
+          "command": "timeTraveller.history.askBlame",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "inline@2"
+        },
+        {
+          "command": "timeTraveller.history.setBaseline",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "1_baseline@1"
+        },
+        {
+          "command": "timeTraveller.history.openAtRevision",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "2_open@1"
+        },
+        {
+          "command": "timeTraveller.history.openDiff",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "2_open@2"
+        },
+        {
+          "command": "timeTraveller.history.askBlame",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "3_chat@1"
+        },
+        {
+          "command": "timeTraveller.history.copySha",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "9_copy@1"
+        },
+        {
+          "command": "timeTraveller.history.copySubject",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "9_copy@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "timeTraveller.history.refresh",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.setBaseline",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.openAtRevision",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.openDiff",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.askBlame",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.copySha",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.copySubject",
+          "when": "false"
+        }
+      ]
+    },
     "chatParticipants": [
       {
         "id": "timeTraveller.blame",
@@ -77,7 +216,8 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run clean && npm run compile",
+    "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\"",
     "compile": "tsc -p ./",
     "watch": "tsc -w -p ./",
     "typecheck": "tsc --noEmit -p ./",

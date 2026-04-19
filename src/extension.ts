@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import { BaselineStore } from './baseline';
-import { TimeTravellerQuickDiff, TIME_TRAVELLER_SCHEME } from './quickDiff';
+import { pickBaselineRef } from './baselinePicker';
 import { registerBlameParticipant } from './chat';
+import { registerHistoryView } from './history/view';
+import { TimeTravellerQuickDiff, TIME_TRAVELLER_SCHEME } from './quickDiff';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const baseline = new BaselineStore(context.workspaceState);
@@ -23,7 +25,8 @@ export function activate(context: vscode.ExtensionContext): void {
 	statusItem.command = 'timeTraveller.pickBaseline';
 	const refreshStatus = () => {
 		const ref = baseline.get();
-		statusItem.text = ref ? `$(git-commit) baseline: ${ref}` : '$(git-commit) baseline: HEAD';
+		const label = ref ? formatRefForStatus(ref) : 'HEAD';
+		statusItem.text = `$(git-commit) baseline: ${label}`;
 		statusItem.tooltip = 'Click to pick a different git ref as the quick-diff baseline.';
 		statusItem.show();
 	};
@@ -32,14 +35,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('timeTraveller.pickBaseline', async () => {
-			const picked = await vscode.window.showInputBox({
-				prompt: 'Pick a git ref (branch, tag, SHA, or stash) to diff against',
-				placeHolder: 'e.g. main, v1.2.0, 9f1c2ab, stash@{0}',
-				value: baseline.get() ?? '',
-			});
-			if (picked !== undefined) {
-				await baseline.set(picked.trim() || undefined);
+			const result = await pickBaselineRef(baseline.get());
+			if (result === undefined) {
+				return;
 			}
+			if (typeof result === 'object' && 'clear' in result) {
+				await baseline.set(undefined);
+				return;
+			}
+			await baseline.set(result);
 		}),
 		vscode.commands.registerCommand('timeTraveller.clearBaseline', async () => {
 			await baseline.set(undefined);
@@ -50,9 +54,17 @@ export function activate(context: vscode.ExtensionContext): void {
 		}),
 	);
 
+	context.subscriptions.push(registerHistoryView(baseline));
 	context.subscriptions.push(registerBlameParticipant(baseline));
 }
 
 export function deactivate(): void {
 	/* noop */
+}
+
+function formatRefForStatus(ref: string): string {
+	if (/^[0-9a-f]{40}$/i.test(ref)) {
+		return ref.slice(0, 8);
+	}
+	return ref.length > 24 ? `${ref.slice(0, 22)}…` : ref;
 }
