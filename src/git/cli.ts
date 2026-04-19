@@ -34,7 +34,7 @@ export interface RawLogRecord {
 	body: string;
 }
 
-const LOG_FORMAT = '%H%x1F%h%x1F%an%x1F%ae%x1F%aI%x1F%P%x1F%s%x1F%b%x1E';
+export const LOG_FORMAT = '%H%x1F%h%x1F%an%x1F%ae%x1F%aI%x1F%P%x1F%s%x1F%b%x1E';
 
 export async function logFile(
 	repoRoot: string,
@@ -60,7 +60,7 @@ export async function logRecent(repoRoot: string, maxCount: number): Promise<Raw
 	}
 }
 
-function parseLog(stdout: string): RawLogRecord[] {
+export function parseLog(stdout: string): RawLogRecord[] {
 	return stdout
 		.split('\x1E')
 		.map((record) => record.replace(/^\n+/, ''))
@@ -85,6 +85,6 @@ export function relativeTo(repoRoot: string, absPath: string): string {
 	return path.relative(repoRoot, absPath);
 }
 
-function shellQuote(value: string): string {
+export function shellQuote(value: string): string {
 	return `'${value.replace(/'/g, `'\\''`)}'`;
 }

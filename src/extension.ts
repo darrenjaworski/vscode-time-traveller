@@ -36,14 +36,12 @@ export function activate(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('timeTraveller.pickBaseline', async () => {
 			const result = await pickBaselineRef(baseline.get());
-			if (result === undefined) {
-				return;
-			}
-			if (typeof result === 'object' && 'clear' in result) {
+			if (result.kind === 'cancel') return;
+			if (result.kind === 'clear') {
 				await baseline.set(undefined);
 				return;
 			}
-			await baseline.set(result);
+			await baseline.set(result.ref);
 		}),
 		vscode.commands.registerCommand('timeTraveller.clearBaseline', async () => {
 			await baseline.set(undefined);
@@ -62,7 +60,7 @@ export function deactivate(): void {
 	/* noop */
 }
 
-function formatRefForStatus(ref: string): string {
+export function formatRefForStatus(ref: string): string {
 	if (/^[0-9a-f]{40}$/i.test(ref)) {
 		return ref.slice(0, 8);
 	}

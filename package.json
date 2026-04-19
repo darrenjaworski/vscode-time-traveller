@@ -220,12 +220,12 @@
     "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\"",
     "compile": "tsc -p ./",
     "watch": "tsc -w -p ./",
-    "typecheck": "tsc --noEmit -p ./",
+    "typecheck": "tsc --noEmit -p ./ && tsc --noEmit -p ./tsconfig.test.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "test:watch": "vitest",
     "package": "vsce package",
     "kitchen-sink": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run compile && npm run package"
@@ -240,6 +240,7 @@
     "prettier": "^3.3.3",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.15.0",
-    "vitest": "^2.1.5"
+    "vitest": "^2.1.5",
+    "vscode-uri": "^3.1.0"
   }
 }

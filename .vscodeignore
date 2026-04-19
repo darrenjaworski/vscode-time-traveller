@@ -9,7 +9,9 @@
 .vscodeignore
 eslint.config.mjs
 tsconfig.json
+tsconfig.test.json
 src/**
+test/**
 **/*.map
 **/*.test.ts
 ROADMAP.md

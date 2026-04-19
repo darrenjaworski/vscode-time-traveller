@@ -7,6 +7,39 @@ export type HistoryNode =
 	| { kind: 'entry'; entry: HistoryEntry; repoRoot: string; relPath: string }
 	| { kind: 'placeholder'; message: string };
 
+export const PLACEHOLDER_MESSAGES = {
+	idle: 'Open a file in a git repository to see its history.',
+	empty: 'No history found for this file.',
+	loading: 'Loading history…',
+} as const;
+
+export function iconIdFor(entry: HistoryEntry, currentBaseline: string | undefined): string {
+	if (currentBaseline === entry.sha) return 'target';
+	if (entry.isMerge) return 'git-merge';
+	return 'git-commit';
+}
+
+export function descriptionFor(entry: HistoryEntry, now: Date = new Date()): string {
+	return `${entry.authorName} · ${relativeTime(entry.authorDate, now)}`;
+}
+
+export function escapeMarkdown(value: string): string {
+	return value.replace(/[\\`*_{}[\]()#+\-.!|>]/g, (c) => `\\${c}`);
+}
+
+export function buildTooltipMarkdown(entry: HistoryEntry): string {
+	const parts: string[] = [];
+	parts.push(`**${escapeMarkdown(entry.subject || '(no subject)')}**\n\n`);
+	if (entry.body) {
+		parts.push(`${escapeMarkdown(entry.body)}\n\n`);
+	}
+	parts.push(
+		`\`${entry.shortSha}\` · ${escapeMarkdown(entry.authorName)} <${escapeMarkdown(entry.authorEmail)}>\n\n`,
+	);
+	parts.push(entry.authorDate.toISOString());
+	return parts.join('');
+}
+
 export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 	private readonly changeEmitter = new vscode.EventEmitter<void>();
 	readonly onDidChangeTreeData = this.changeEmitter.event;
@@ -53,11 +86,11 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		}
 		const { entry } = node;
 		const item = new vscode.TreeItem(entry.subject || '(no subject)');
-		item.description = `${entry.authorName} · ${relativeTime(entry.authorDate)}`;
-		item.tooltip = buildTooltip(entry);
-		item.iconPath = new vscode.ThemeIcon(
-			this.baseline.get() === entry.sha ? 'target' : entry.isMerge ? 'git-merge' : 'git-commit',
-		);
+		item.description = descriptionFor(entry);
+		const tooltip = new vscode.MarkdownString(buildTooltipMarkdown(entry));
+		tooltip.isTrusted = false;
+		item.tooltip = tooltip;
+		item.iconPath = new vscode.ThemeIcon(iconIdFor(entry, this.baseline.get()));
 		item.contextValue = 'timeTraveller.history.entry';
 		item.command = {
 			command: 'timeTraveller.history.setBaseline',
@@ -72,18 +105,13 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 			return [];
 		}
 		if (this.loading) {
-			return [{ kind: 'placeholder', message: 'Loading history…' }];
+			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.loading }];
 		}
 		if (!this.context) {
-			return [
-				{
-					kind: 'placeholder',
-					message: 'Open a file in a git repository to see its history.',
-				},
-			];
+			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.idle }];
 		}
 		if (this.context.entries.length === 0) {
-			return [{ kind: 'placeholder', message: 'No history found for this file.' }];
+			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.empty }];
 		}
 		return this.context.entries.map((entry) => ({
 			kind: 'entry',
@@ -92,22 +120,4 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 			relPath: this.context!.relPath,
 		}));
 	}
-}
-
-function buildTooltip(entry: HistoryEntry): vscode.MarkdownString {
-	const md = new vscode.MarkdownString();
-	md.isTrusted = false;
-	md.appendMarkdown(`**${escapeMd(entry.subject || '(no subject)')}**\n\n`);
-	if (entry.body) {
-		md.appendMarkdown(`${escapeMd(entry.body)}\n\n`);
-	}
-	md.appendMarkdown(
-		`\`${entry.shortSha}\` · ${escapeMd(entry.authorName)} <${escapeMd(entry.authorEmail)}>\n\n`,
-	);
-	md.appendMarkdown(`${entry.authorDate.toISOString()}`);
-	return md;
-}
-
-function escapeMd(s: string): string {
-	return s.replace(/[\\`*_{}[\]()#+\-.!|>]/g, (c) => `\\${c}`);
 }

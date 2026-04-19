@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { findRepository } from '../git/api';
-import { logFile, relativeTo } from '../git/cli';
+import { logFile, relativeTo, type RawLogRecord } from '../git/cli';
 
 export interface HistoryEntry {
 	sha: string;
@@ -20,16 +20,42 @@ export interface HistoryContext {
 	entries: HistoryEntry[];
 }
 
-const DEFAULT_MAX = 200;
+export const DEFAULT_MAX_HISTORY = 200;
+
+export function toHistoryEntry(record: RawLogRecord): HistoryEntry {
+	const parents = record.parents ? record.parents.split(' ').filter(Boolean) : [];
+	return {
+		sha: record.sha,
+		shortSha: record.shortSha,
+		subject: record.subject,
+		body: record.body,
+		authorName: record.authorName,
+		authorEmail: record.authorEmail,
+		authorDate: new Date(record.authorDate),
+		parents,
+		isMerge: parents.length > 1,
+	};
+}
+
+export interface HistoryServiceDeps {
+	findRepo: typeof findRepository;
+	log: typeof logFile;
+}
+
+const defaultDeps: HistoryServiceDeps = {
+	findRepo: findRepository,
+	log: logFile,
+};
 
 export async function getFileHistory(
 	uri: vscode.Uri,
-	maxCount: number = DEFAULT_MAX,
+	maxCount: number = DEFAULT_MAX_HISTORY,
+	deps: HistoryServiceDeps = defaultDeps,
 ): Promise<HistoryContext | undefined> {
 	if (uri.scheme !== 'file') {
 		return undefined;
 	}
-	const repo = await findRepository(uri);
+	const repo = await deps.findRepo(uri);
 	if (!repo) {
 		return undefined;
 	}
@@ -38,20 +64,6 @@ export async function getFileHistory(
 	if (!relPath || relPath.startsWith('..')) {
 		return undefined;
 	}
-	const records = await logFile(repoRoot, relPath, maxCount);
-	const entries = records.map<HistoryEntry>((r) => {
-		const parents = r.parents ? r.parents.split(' ').filter(Boolean) : [];
-		return {
-			sha: r.sha,
-			shortSha: r.shortSha,
-			subject: r.subject,
-			body: r.body,
-			authorName: r.authorName,
-			authorEmail: r.authorEmail,
-			authorDate: new Date(r.authorDate),
-			parents,
-			isMerge: parents.length > 1,
-		};
-	});
-	return { repoRoot, relPath, entries };
+	const records = await deps.log(repoRoot, relPath, maxCount);
+	return { repoRoot, relPath, entries: records.map(toHistoryEntry) };
 }
