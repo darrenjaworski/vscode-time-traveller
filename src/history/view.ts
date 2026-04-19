@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { BaselineStore } from '../baseline';
-import { findRepository } from '../git/api';
+import { findRepository, getGitAPI } from '../git/api';
 import { makeTimeTravellerUri } from '../quickDiff';
 import { buildCommitUrl, parseRemoteUrl } from '../remote';
 import { HistoryProvider, type HistoryNode } from './provider';
@@ -25,6 +25,22 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 			}
 		}),
 	);
+
+	// The built-in Git extension discovers repositories asynchronously. If our
+	// first `refresh()` races ahead of that discovery, `getFileHistory` returns
+	// undefined and the panel sits on the idle placeholder. Re-trigger when
+	// repos show up so the panel self-heals.
+	void getGitAPI().then((api) => {
+		if (!api) return;
+		disposables.push(
+			api.onDidOpenRepository(() => scheduleRefresh()),
+			api.onDidCloseRepository(() => scheduleRefresh()),
+		);
+		// Also retry now in case the API was already populated but our first
+		// refresh ran before the await resolved.
+		scheduleRefresh();
+	});
+
 	void provider.refresh();
 
 	disposables.push(

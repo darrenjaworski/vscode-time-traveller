@@ -86,9 +86,19 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		this.loading = true;
 		this.changeEmitter.fire();
 		try {
-			this.context = await getFileHistory(target);
-			this.isDirty = await this.checkDirty(target);
-			this.loadedForUri = target.toString();
+			const context = await getFileHistory(target);
+			const dirty = await this.checkDirty(target);
+			this.context = context;
+			this.isDirty = dirty;
+			// Only remember the URI as loaded if the load actually succeeded.
+			// Otherwise a transient failure (Git extension still discovering
+			// repositories, network hiccup, etc.) would stick forever because
+			// the early-return at the top of refresh() would skip retries.
+			if (context) {
+				this.loadedForUri = target.toString();
+			} else {
+				this.loadedForUri = undefined;
+			}
 		} finally {
 			this.loading = false;
 			this.changeEmitter.fire();
