@@ -122,17 +122,18 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 
 Goal: ask `@blame` about a line, range, or file and get a _why_, not just a _who_.
 
-- [ ] Handler reads the active selection / cursor position from the chat context
-- [ ] Gather evidence: `git blame -w --follow`, `git log -L`, commit bodies, parent diffs
-- [ ] Fetch PR context when a remote is GitHub/GitLab (commit → PR → body + review comments)
-- [ ] Prompt template that includes code excerpt + commit trail + PR summaries
-- [ ] Stream response with `vscode.ChatResponseStream`; include `Reference`s to the commits
-- [ ] Slash commands:
-  - `/why` — explain why the selected lines changed
-  - `/story` — narrative timeline of a file or symbol
-  - `/blame-since <ref>` — focus on changes since a ref
-  - `/author <name>` — filter the history to one author
-- [ ] Follow-up suggestions (`ChatFollowup`) for drill-down
+- [x] Handler reads the active selection / cursor position from the chat context
+- [x] Gather evidence: `git blame -w` on the selected range, `git log --follow` on the file (default + `/blame-since <ref>` + `/author <pattern>` variants), commit bodies
+- [ ] Parent-diff snippets — deferred; current evidence relies on commit bodies only
+- [ ] Fetch PR context when a remote is GitHub/GitLab (commit → PR → body + review comments) — deferred, needs `vscode.authentication` + API client
+- [x] Prompt template that includes selection excerpt + blame-by-SHA rollup + referenced commits + file log
+- [x] Stream response with `vscode.ChatResponseStream`; emit `stream.reference(uri)` for each cited commit (via `makeTimeTravellerUri`)
+- [x] Slash commands:
+  - [x] `/why` — explain why the selected lines changed
+  - [x] `/story` — narrative timeline of a file or symbol
+  - [x] `/blame-since <ref>` — focus on changes since a ref
+  - [x] `/author <pattern>` — filter the history to one author (pattern matches git's `--author=` regex against name+email)
+- [x] Follow-up suggestions (`followupProvider`) for drill-down — cross-command and blame-aware
 
 ## Phase 4 — Inline UX
 

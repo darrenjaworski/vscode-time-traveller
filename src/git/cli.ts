@@ -61,6 +61,129 @@ export async function logRecent(repoRoot: string, maxCount: number): Promise<Raw
 }
 
 /**
+ * `git log <since>..HEAD -- <path>` — commits on the current branch that
+ * aren't reachable from `sinceRef`. Useful for "what changed since v1.2.0".
+ */
+export async function logFileSince(
+	repoRoot: string,
+	relPath: string,
+	sinceRef: string,
+	maxCount: number,
+): Promise<RawLogRecord[]> {
+	const cmd = `git log ${shellQuote(sinceRef)}..HEAD --max-count=${maxCount} --follow --pretty=format:${shellQuote(LOG_FORMAT)} -- ${shellQuote(relPath.replace(/\\/g, '/'))}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return parseLog(stdout);
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * `git log --author=<pattern>` filtered to a single file. The pattern is
+ * passed as-is to git, which matches it as a regex against author name+email.
+ */
+export async function logFileByAuthor(
+	repoRoot: string,
+	relPath: string,
+	authorPattern: string,
+	maxCount: number,
+): Promise<RawLogRecord[]> {
+	const cmd = `git log --follow --max-count=${maxCount} --author=${shellQuote(authorPattern)} --pretty=format:${shellQuote(LOG_FORMAT)} -- ${shellQuote(relPath.replace(/\\/g, '/'))}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return parseLog(stdout);
+	} catch {
+		return [];
+	}
+}
+
+export interface BlameLine {
+	sha: string;
+	line: number;
+	author: string;
+	authorEmail: string;
+	authorTime: number;
+	summary: string;
+	content: string;
+}
+
+/**
+ * `git blame --porcelain -L <start>,<end>` and parse the result. `startLine`
+ * and `endLine` are 1-based, inclusive, matching git's own convention.
+ */
+export async function blameRange(
+	repoRoot: string,
+	relPath: string,
+	startLine: number,
+	endLine: number,
+): Promise<BlameLine[]> {
+	const cmd = `git blame --porcelain -L ${startLine},${endLine} -w -- ${shellQuote(relPath.replace(/\\/g, '/'))}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return parseBlamePorcelain(stdout);
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Parse git's `--porcelain` blame output. Each line in the range produces a
+ * record; commit-level metadata (author, summary, time) is emitted in the
+ * first block for a given SHA and reused for subsequent mentions. Pure:
+ * takes the raw stdout, returns structured lines in input order.
+ */
+export function parseBlamePorcelain(stdout: string): BlameLine[] {
+	const out: BlameLine[] = [];
+	const meta = new Map<
+		string,
+		{ author?: string; authorEmail?: string; authorTime?: number; summary?: string }
+	>();
+	const lines = stdout.split('\n');
+	let currentSha: string | undefined;
+	let currentLine = 0;
+	let awaitingContent = false;
+
+	for (const raw of lines) {
+		if (awaitingContent && raw.startsWith('\t')) {
+			const info = currentSha ? meta.get(currentSha) : undefined;
+			if (currentSha && info) {
+				out.push({
+					sha: currentSha,
+					line: currentLine,
+					author: info.author ?? '',
+					authorEmail: info.authorEmail ?? '',
+					authorTime: info.authorTime ?? 0,
+					summary: info.summary ?? '',
+					content: raw.slice(1),
+				});
+			}
+			awaitingContent = false;
+			continue;
+		}
+
+		const header = raw.match(/^([0-9a-f]{40}) (\d+) (\d+)(?: (\d+))?$/);
+		if (header) {
+			currentSha = header[1];
+			currentLine = Number.parseInt(header[3], 10);
+			awaitingContent = true;
+			if (!meta.has(currentSha)) meta.set(currentSha, {});
+			continue;
+		}
+
+		if (!currentSha) continue;
+		const entry = meta.get(currentSha)!;
+		if (raw.startsWith('author ')) entry.author = raw.slice(7);
+		else if (raw.startsWith('author-mail ')) {
+			entry.authorEmail = raw.slice(12).replace(/^<|>$/g, '');
+		} else if (raw.startsWith('author-time ')) {
+			entry.authorTime = Number.parseInt(raw.slice(12), 10);
+		} else if (raw.startsWith('summary ')) entry.summary = raw.slice(8);
+	}
+	return out;
+}
+
+/**
  * For each commit touching `relPath` (following renames), record the path the
  * file had at that commit. Used to surface "renamed from X" affordances when
  * the path changes between adjacent entries in the file's log.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOG_FORMAT, parseLog, parsePathsByCommit, shellQuote } from './cli';
+import { LOG_FORMAT, parseBlamePorcelain, parseLog, parsePathsByCommit, shellQuote } from './cli';
 
 function record(fields: {
 	sha?: string;
@@ -125,5 +125,67 @@ describe('parsePathsByCommit', () => {
 		const map = parsePathsByCommit(stdout, marker);
 		expect(map.has('abc123')).toBe(false);
 		expect(map.get('def456')).toBe('src/foo.ts');
+	});
+});
+
+describe('parseBlamePorcelain', () => {
+	const block = (sha: string, line: number, content: string, withMeta = true) => {
+		const header = `${sha} ${line} ${line}`;
+		const metaLines = withMeta
+			? [
+					'author Alice',
+					'author-mail <alice@example.com>',
+					'author-time 1700000000',
+					'author-tz +0000',
+					'committer Alice',
+					'committer-mail <alice@example.com>',
+					'committer-time 1700000000',
+					'committer-tz +0000',
+					'summary Do the thing',
+					'filename src/foo.ts',
+				]
+			: [];
+		return [header, ...metaLines, `\t${content}`].join('\n');
+	};
+
+	it('returns an empty array for empty input', () => {
+		expect(parseBlamePorcelain('')).toEqual([]);
+	});
+
+	it('parses a single-line block with full metadata', () => {
+		const stdout = block('a'.repeat(40), 1, 'hello');
+		const [line] = parseBlamePorcelain(stdout);
+		expect(line).toEqual({
+			sha: 'a'.repeat(40),
+			line: 1,
+			author: 'Alice',
+			authorEmail: 'alice@example.com',
+			authorTime: 1700000000,
+			summary: 'Do the thing',
+			content: 'hello',
+		});
+	});
+
+	it('reuses metadata across lines with the same SHA (porcelain only emits it once)', () => {
+		const stdout =
+			block('a'.repeat(40), 1, 'line one') +
+			'\n' +
+			[`${'a'.repeat(40)} 2 2`, '\tline two'].join('\n');
+		const lines = parseBlamePorcelain(stdout);
+		expect(lines.map((l) => l.line)).toEqual([1, 2]);
+		expect(lines.every((l) => l.author === 'Alice')).toBe(true);
+		expect(lines.map((l) => l.content)).toEqual(['line one', 'line two']);
+	});
+
+	it('handles multiple distinct SHAs in one blame', () => {
+		const stdout = block('a'.repeat(40), 1, 'first') + '\n' + block('b'.repeat(40), 2, 'second');
+		const lines = parseBlamePorcelain(stdout);
+		expect(lines.map((l) => l.sha)).toEqual(['a'.repeat(40), 'b'.repeat(40)]);
+		expect(lines.map((l) => l.line)).toEqual([1, 2]);
+	});
+
+	it('strips angle brackets from author-mail', () => {
+		const stdout = block('a'.repeat(40), 1, 'x');
+		expect(parseBlamePorcelain(stdout)[0].authorEmail).toBe('alice@example.com');
 	});
 });

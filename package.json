@@ -284,6 +284,14 @@
           {
             "name": "story",
             "description": "Narrative timeline of the active file or symbol"
+          },
+          {
+            "name": "blame-since",
+            "description": "Explain what changed in this file since a ref (e.g. `/blame-since v1.2.0`)"
+          },
+          {
+            "name": "author",
+            "description": "Summarize this file's history by a specific author (e.g. `/author Alice`)"
           }
         ]
       }

@@ -156,7 +156,11 @@ export const scm = {
 };
 
 export const chat = {
-	createChatParticipant: vi.fn(() => ({ dispose: vi.fn() })),
+	createChatParticipant: vi.fn(() => ({
+		dispose: vi.fn(),
+		followupProvider: undefined as unknown,
+		iconPath: undefined as unknown,
+	})),
 };
 
 export const env = {

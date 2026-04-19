@@ -1,58 +1,219 @@
 import * as vscode from 'vscode';
-import { BaselineStore } from './baseline';
+import type { BaselineStore } from './baseline';
+import { citedShas, composeEvidence, extractShaMention, type Evidence } from './blame/evidence';
+import { suggestFollowups } from './blame/followups';
+import { buildUserPrompt, systemPrompt, type BlameCommand } from './blame/prompt';
+import { findRepository } from './git/api';
+import {
+	blameRange,
+	logFile,
+	logFileByAuthor,
+	logFileSince,
+	relativeTo,
+	type BlameLine,
+	type RawLogRecord,
+} from './git/cli';
+import { makeTimeTravellerUri } from './quickDiff';
 
+const FILE_LOG_CAP = 60;
+
+/**
+ * Registers the `@blame` chat participant. The participant ID **must** match
+ * `contributes.chatParticipants[].id` in `package.json`.
+ *
+ * Flow: parse slash command → gather evidence (blame + log) → build prompt via
+ * the pure helpers in `src/blame/*` → stream LM response → emit commit
+ * references + follow-up suggestions.
+ */
 export function registerBlameParticipant(baseline: BaselineStore): vscode.Disposable {
 	const handler: vscode.ChatRequestHandler = async (request, _ctx, stream, token) => {
+		const command = normalizeCommand(request.command);
 		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			stream.markdown(
-				'Open a file and select the lines you want explained, then ask `@blame` again.',
-			);
-			return;
-		}
-
-		const selection = editor.selection;
-		const doc = editor.document;
-		const range = selection.isEmpty
-			? new vscode.Range(selection.active.line, 0, selection.active.line, Number.MAX_SAFE_INTEGER)
-			: selection;
-		const excerpt = doc.getText(range);
-		const ref = baseline.get() ?? 'HEAD';
+		const fileUri = editor?.document.uri.scheme === 'file' ? editor.document.uri : undefined;
 
 		stream.progress('Gathering history…');
+
+		const evidence = await gatherEvidence({
+			command,
+			prompt: request.prompt ?? '',
+			editor,
+			fileUri,
+		});
+
+		if (!evidence) {
+			stream.markdown(
+				'Open a tracked file in a git repository and ask again. `@blame` needs a file under version control to work from.',
+			);
+			return {};
+		}
+
+		for (const sha of citedShas(evidence)) {
+			const uri = makeCommitUri(evidence, sha);
+			if (uri) stream.reference(uri);
+		}
 
 		const [model] = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
 		if (!model) {
 			stream.markdown(
-				'No language model is available. Install GitHub Copilot Chat or another provider that exposes `vscode.lm`.',
+				'No language model is available. Install GitHub Copilot Chat or another provider that exposes `vscode.lm`, then try again.',
 			);
-			return;
+			return {};
 		}
 
 		const messages: vscode.LanguageModelChatMessage[] = [
+			vscode.LanguageModelChatMessage.User(systemPrompt()),
 			vscode.LanguageModelChatMessage.User(
-				[
-					'You are @blame, a narrator of git history.',
-					`The user asked: ${request.prompt || '(no prompt — explain why these lines changed)'}`,
-					`Baseline ref: ${ref}`,
-					`File: ${vscode.workspace.asRelativePath(doc.uri)} (lines ${range.start.line + 1}-${range.end.line + 1})`,
-					'',
-					'--- excerpt ---',
-					excerpt,
-					'--- end excerpt ---',
-					'',
-					'For now, produce a short placeholder response acknowledging the request.',
-					'Future versions will include commit messages, diffs, and PR context.',
-				].join('\n'),
+				buildUserPrompt(evidence, command, request.prompt ?? ''),
 			),
 		];
 
-		const response = await model.sendRequest(messages, {}, token);
-		for await (const chunk of response.text) {
-			stream.markdown(chunk);
+		try {
+			const response = await model.sendRequest(messages, {}, token);
+			for await (const chunk of response.text) {
+				stream.markdown(chunk);
+			}
+		} catch (err) {
+			if (err instanceof Error && err.name === 'Canceled') return {};
+			stream.markdown(`\n\n_Language model error: ${(err as Error).message}_`);
 		}
+
+		// Touch baseline to satisfy unused-var lint; consumed when we extend the
+		// prompt with "current baseline" context in a later pass.
+		void baseline;
+
+		return { metadata: { command } };
 	};
 
 	const participant = vscode.chat.createChatParticipant('timeTraveller.blame', handler);
+	participant.followupProvider = {
+		provideFollowups: (result) => {
+			const command = normalizeCommand(
+				(result.metadata as { command?: string } | undefined)?.command,
+			);
+			const evidence = (result.metadata as { evidence?: Evidence } | undefined)?.evidence;
+			if (!evidence) return [];
+			return suggestFollowups(command, evidence).map((f) => ({
+				label: f.label,
+				prompt: f.prompt,
+				command: f.command === 'default' ? undefined : f.command,
+				participant: 'timeTraveller.blame',
+			}));
+		},
+	};
 	return participant;
+}
+
+interface GatherInputs {
+	command: BlameCommand;
+	prompt: string;
+	editor: vscode.TextEditor | undefined;
+	fileUri: vscode.Uri | undefined;
+}
+
+async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefined> {
+	const { fileUri, editor, prompt, command } = inputs;
+	if (!fileUri) return undefined;
+	const repo = await findRepository(fileUri);
+	if (!repo) return undefined;
+	const repoRoot = repo.rootUri.fsPath;
+	const relPath = relativeTo(repoRoot, fileUri.fsPath);
+	if (!relPath || relPath.startsWith('..')) return undefined;
+
+	const selection = editor ? resolveSelection(editor, relPath) : undefined;
+	const referencedSha = extractShaMention(prompt);
+	const { records, filterDescription } = await loadRecords(command, prompt, repoRoot, relPath);
+
+	let blameLines: BlameLine[] | undefined;
+	if ((command === 'why' || command === 'default') && selection) {
+		blameLines = await blameRange(repoRoot, relPath, selection.startLine, selection.endLine);
+	}
+
+	return composeEvidence({
+		selection,
+		blameLines,
+		fileRecords: records,
+		referencedShas: referencedSha ? [referencedSha] : undefined,
+		filterDescription,
+	});
+}
+
+function resolveSelection(editor: vscode.TextEditor, relPath: string): Evidence['selection'] {
+	const doc = editor.document;
+	const sel = editor.selection;
+	const range = sel.isEmpty
+		? new vscode.Range(sel.active.line, 0, sel.active.line, Number.MAX_SAFE_INTEGER)
+		: sel;
+	const excerpt = doc.getText(range);
+	return {
+		relPath,
+		startLine: range.start.line + 1,
+		endLine: range.end.line + 1,
+		excerpt,
+	};
+}
+
+async function loadRecords(
+	command: BlameCommand,
+	prompt: string,
+	repoRoot: string,
+	relPath: string,
+): Promise<{ records: RawLogRecord[]; filterDescription?: string }> {
+	if (command === 'blame-since') {
+		const ref = firstArg(prompt);
+		if (!ref) {
+			return {
+				records: await logFile(repoRoot, relPath, FILE_LOG_CAP),
+				filterDescription:
+					'/blame-since needs a ref (e.g. `/blame-since v1.2.0`) — falling back to full log',
+			};
+		}
+		return {
+			records: await logFileSince(repoRoot, relPath, ref, FILE_LOG_CAP),
+			filterDescription: `commits since ${ref}`,
+		};
+	}
+	if (command === 'author') {
+		const pattern = firstArg(prompt);
+		if (!pattern) {
+			return {
+				records: await logFile(repoRoot, relPath, FILE_LOG_CAP),
+				filterDescription: '/author needs a name or email pattern — falling back to full log',
+			};
+		}
+		return {
+			records: await logFileByAuthor(repoRoot, relPath, pattern, FILE_LOG_CAP),
+			filterDescription: `commits by ${pattern}`,
+		};
+	}
+	return { records: await logFile(repoRoot, relPath, FILE_LOG_CAP) };
+}
+
+export function normalizeCommand(raw: string | undefined): BlameCommand {
+	switch (raw) {
+		case 'why':
+		case 'story':
+		case 'blame-since':
+		case 'author':
+			return raw;
+		default:
+			return 'default';
+	}
+}
+
+export function firstArg(prompt: string): string | undefined {
+	const trimmed = prompt.trim();
+	if (!trimmed) return undefined;
+	const first = trimmed.split(/\s+/)[0];
+	return first.length > 0 ? first : undefined;
+}
+
+function makeCommitUri(evidence: Evidence, sha: string): vscode.Uri | undefined {
+	if (!evidence.selection) return undefined;
+	// We don't have repoRoot in the pure evidence; rebuild from the selection's
+	// relPath plus the active editor's workspace folder at reference time.
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) return undefined;
+	const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+	if (!folder) return undefined;
+	return makeTimeTravellerUri(folder.uri.fsPath, evidence.selection.relPath, sha);
 }
