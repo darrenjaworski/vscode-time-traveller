@@ -1,0 +1,105 @@
+{
+  "name": "vscode-time-traveller",
+  "displayName": "Git Time Traveller",
+  "description": "Pick any commit, branch, or stash as the gutter diff baseline, and ask @blame why a line changed.",
+  "version": "0.0.1",
+  "publisher": "darrenjaworski",
+  "author": "Darren Jaworski <darrenjaworski@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/darrenjaworski/vscode-time-traveller.git"
+  },
+  "bugs": {
+    "url": "https://github.com/darrenjaworski/vscode-time-traveller/issues"
+  },
+  "homepage": "https://github.com/darrenjaworski/vscode-time-traveller#readme",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "AI",
+    "Chat",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "timeTraveller.pickBaseline",
+        "title": "Time Traveller: Pick Diff Baseline…",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.clearBaseline",
+        "title": "Time Traveller: Clear Diff Baseline",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.showCurrentBaseline",
+        "title": "Time Traveller: Show Current Baseline",
+        "category": "Time Traveller"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "timeTraveller.blame",
+        "name": "blame",
+        "fullName": "Blame",
+        "description": "Explain why a line changed, grounded in git history and PR context.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "why",
+            "description": "Explain why the selected lines changed"
+          },
+          {
+            "name": "story",
+            "description": "Narrative timeline of the active file or symbol"
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Git Time Traveller",
+      "properties": {
+        "timeTraveller.defaultBaseline": {
+          "type": "string",
+          "default": "HEAD",
+          "description": "Default git ref to diff against when no baseline is picked."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "typecheck": "tsc --noEmit -p ./",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "package": "vsce package",
+    "kitchen-sink": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run compile && npm run package"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.2.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.5"
+  }
+}
