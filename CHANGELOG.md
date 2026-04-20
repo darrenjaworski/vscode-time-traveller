@@ -4,6 +4,12 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-19
+
+### Added
+
+- Marketplace icon — 128×128 PNG rendered from the `git-historian.svg` artwork.
+
 ## [0.2.0] - 2026-04-19
 
 Phase 4 Inline UX lands — the gutter now has in-editor affordances, not just decorations. The chat participant is renamed to something that actually describes what it does.
