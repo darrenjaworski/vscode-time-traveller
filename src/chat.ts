@@ -143,17 +143,17 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 	});
 }
 
-function resolveSelection(editor: vscode.TextEditor, relPath: string): Evidence['selection'] {
-	const doc = editor.document;
+export function resolveSelection(
+	editor: vscode.TextEditor,
+	relPath: string,
+): Evidence['selection'] | undefined {
 	const sel = editor.selection;
-	const range = sel.isEmpty
-		? new vscode.Range(sel.active.line, 0, sel.active.line, Number.MAX_SAFE_INTEGER)
-		: sel;
-	const excerpt = doc.getText(range);
+	if (sel.isEmpty) return undefined;
+	const excerpt = editor.document.getText(sel);
 	return {
 		relPath,
-		startLine: range.start.line + 1,
-		endLine: range.end.line + 1,
+		startLine: sel.start.line + 1,
+		endLine: sel.end.line + 1,
 		excerpt,
 	};
 }
