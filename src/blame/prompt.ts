@@ -86,19 +86,34 @@ function referencedCommitsSection(commits: CommitSummary[]): string {
 	);
 }
 
+interface BlameGroup {
+	sha: string;
+	summary: string;
+	author: string;
+	timestamp: Date;
+	lines: number[];
+}
+
 function blameSection(evidence: Evidence): string {
 	const lines = evidence.blameLines ?? [];
-	const byShaRaw = new Map<string, { sha: string; summary: string; lines: number[] }>();
+	const byShaRaw = new Map<string, BlameGroup>();
 	for (const l of lines) {
 		let rec = byShaRaw.get(l.sha);
 		if (!rec) {
-			rec = { sha: l.sha, summary: l.summary, lines: [] };
+			rec = {
+				sha: l.sha,
+				summary: l.summary,
+				author: l.author,
+				timestamp: new Date(l.authorTime * 1000),
+				lines: [],
+			};
 			byShaRaw.set(l.sha, rec);
 		}
 		rec.lines.push(l.line);
 	}
 	const bullets = Array.from(byShaRaw.values()).map(
-		(rec) => `- \`${rec.sha.slice(0, 7)}\` ${rec.summary} — lines ${compressRanges(rec.lines)}`,
+		(rec) =>
+			`- \`${rec.sha.slice(0, 7)}\` · ${rec.author} · ${formatShortTimestamp(rec.timestamp)} — ${rec.summary} — lines ${compressRanges(rec.lines)}`,
 	);
 	return ['Blame for the selected lines:', ...bullets].join('\n');
 }
@@ -113,13 +128,24 @@ function fileLogSection(evidence: Evidence, command: BlameCommand): string {
 }
 
 function formatCommitBlock(c: CommitSummary): string {
-	const header = `\`${c.shortSha}\` — ${c.subject} (${c.authorName}, ${c.authorDate.toISOString().slice(0, 10)}${c.isMerge ? ', merge' : ''})`;
+	const mergeTag = c.isMerge ? ' · merge' : '';
+	const header = `\`${c.shortSha}\` · ${c.authorName} · ${formatShortTimestamp(c.authorDate)}${mergeTag} — ${c.subject}`;
 	if (!c.body) return header;
 	const body = c.body
 		.split('\n')
 		.map((line) => `  ${line}`)
 		.join('\n');
 	return `${header}\n${body}`;
+}
+
+/**
+ * Compact UTC timestamp: "yyyy-mm-dd HH:MM". Short enough to inline on every
+ * commit citation without blowing out the prompt, detailed enough to
+ * disambiguate multiple same-day commits.
+ */
+export function formatShortTimestamp(date: Date): string {
+	const iso = date.toISOString();
+	return `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
 }
 
 /** "1,2,3,5,6,9" → "1-3, 5-6, 9" — keeps the blame summary terse. */

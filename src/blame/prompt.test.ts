@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BlameLine } from '../git/cli';
 import { composeEvidence, recordToSummary } from './evidence';
 import type { Evidence } from './evidence';
-import { buildUserPrompt, compressRanges, systemPrompt } from './prompt';
+import { buildUserPrompt, compressRanges, formatShortTimestamp, systemPrompt } from './prompt';
 
 function rec(sha: string, subject: string) {
 	return {
@@ -112,6 +112,37 @@ describe('buildUserPrompt', () => {
 		expect(prompt).toMatch(/bbbbbbb.*fix edge case.*3/);
 	});
 
+	it('blame bullets include author and a short UTC timestamp for every SHA', () => {
+		const ev = composeEvidence({
+			fileRecords: [],
+			blameLines: [
+				{
+					sha: 'a'.repeat(40),
+					line: 1,
+					author: 'Alice',
+					authorEmail: 'alice@example.com',
+					authorTime: Math.floor(new Date('2026-04-19T12:34:00Z').getTime() / 1000),
+					summary: 'initial',
+					content: '',
+				},
+			],
+		});
+		const prompt = buildUserPrompt(ev, 'default', '');
+		expect(prompt).toContain('Alice');
+		expect(prompt).toContain('2026-04-19 12:34');
+	});
+
+	it('commit blocks carry shortSha + author + yyyy-mm-dd HH:MM on every citation', () => {
+		const fileCommits = [
+			recordToSummary({
+				...rec('a'.repeat(40), 'Did the thing'),
+				authorDate: '2026-04-19T09:05:00Z',
+			}),
+		];
+		const prompt = buildUserPrompt(baseEv({ fileCommits }), 'story', '');
+		expect(prompt).toContain('`aaaaaaa` · Alice · 2026-04-19 09:05 — Did the thing');
+	});
+
 	it('caps the file log so prompts do not blow out the context window', () => {
 		const fileCommits = Array.from({ length: 30 }, (_, i) =>
 			recordToSummary(rec(String(i).padStart(40, '0'), `subject ${i}`)),
@@ -128,6 +159,16 @@ describe('buildUserPrompt', () => {
 			'',
 		);
 		expect(prompt).toContain('Filter: since v1.0.0');
+	});
+});
+
+describe('formatShortTimestamp', () => {
+	it('renders yyyy-mm-dd HH:MM in UTC regardless of local timezone', () => {
+		expect(formatShortTimestamp(new Date('2026-04-19T12:34:56Z'))).toBe('2026-04-19 12:34');
+	});
+
+	it('zero-pads single-digit months/days/hours/minutes', () => {
+		expect(formatShortTimestamp(new Date('2026-01-02T03:04:05Z'))).toBe('2026-01-02 03:04');
 	});
 });
 
