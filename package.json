@@ -77,6 +77,12 @@
         "icon": "$(globe)"
       },
       {
+        "command": "timeTraveller.history.askBlameAboutFile",
+        "title": "Ask @blame about this file",
+        "category": "Time Traveller",
+        "icon": "$(comment-discussion)"
+      },
+      {
         "command": "timeTraveller.history.openDiffPrev",
         "title": "Compare with previous revision",
         "category": "Time Traveller",
@@ -146,9 +152,14 @@
     "menus": {
       "view/title": [
         {
+          "command": "timeTraveller.history.askBlameAboutFile",
+          "when": "view == timeTraveller.fileHistory",
+          "group": "navigation@1"
+        },
+        {
           "command": "timeTraveller.history.refresh",
           "when": "view == timeTraveller.fileHistory",
-          "group": "navigation"
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -256,6 +267,10 @@
         },
         {
           "command": "timeTraveller.history.clearFileBaseline",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.askBlameAboutFile",
           "when": "false"
         }
       ]

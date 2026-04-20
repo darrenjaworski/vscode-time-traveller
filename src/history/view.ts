@@ -125,6 +125,23 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 			await vscode.commands.executeCommand('workbench.action.chat.open', { query });
 		}),
 
+		vscode.commands.registerCommand('timeTraveller.history.askBlameAboutFile', async () => {
+			const ctx = provider.getCurrentContext();
+			const activeUri = vscode.window.activeTextEditor?.document.uri;
+			const rel =
+				ctx?.relPath ??
+				(activeUri?.scheme === 'file' ? vscode.workspace.asRelativePath(activeUri) : undefined);
+			if (!rel) {
+				vscode.window.setStatusBarMessage(
+					'Open a tracked file to ask @blame about its history.',
+					2500,
+				);
+				return;
+			}
+			const query = `@blame /story ${rel}`;
+			await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+		}),
+
 		vscode.commands.registerCommand(
 			'timeTraveller.history.openOnRemote',
 			async (node: HistoryNode) => {
