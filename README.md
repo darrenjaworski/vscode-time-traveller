@@ -8,9 +8,9 @@ git-blame meets narrative history, in one VS Code extension.
 
 ## Features
 
-### Time-travel quick diff
+### Dynamic baseline diff
 
-The gutter's modify/add/delete decorations normally show changes since `HEAD`. Time Traveller lets you swap that baseline to **any** git ref with one pick:
+The gutter's modify/add/delete decorations normally show changes since `HEAD`. This extension lets you swap that baseline to **any** git ref with one pick:
 
 - current HEAD, or any branch, tag, or remote branch
 - the last 30 commits on the current branch
@@ -31,9 +31,9 @@ A sidebar tree under the built-in **Source Control** view, backed by `git log --
 - context menu: set as baseline (per-file), set as workspace baseline, open at revision, copy SHA / subject, **open on GitHub / GitLab / Bitbucket**
 - title-bar button: **Ask `@blame` about this file** — one-click narrative timeline
 
-### `@blame` chat participant
+### `@blame` — the narrator
 
-A grounded narrator for your git history, powered by `vscode.lm`. Four slash commands:
+The Time Traveller: a chat participant that explains _why_ lines got the way they are, grounded in real commit history rather than the model's imagination. Powered by `vscode.lm`. Four slash commands:
 
 - **`/why`** _(default)_ — explains the selected lines using `git blame -w` for attribution and the file log for context
 - **`/story`** — chronological narrative of how the file got to its current shape
