@@ -4,6 +4,10 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-19
+
+Phase 4 Inline UX lands — the gutter now has in-editor affordances, not just decorations. The chat participant is renamed to something that actually describes what it does.
+
 ### Changed
 
 - **The chat participant is now `@historian`** (was `@blame`). The old name implied attribution only; the new name matches what we actually do — narrate git history, explain why code changed, walk the story. Slash command `/blame-since` also renamed to `/since`. Internal refactor: `src/blame/` moved to `src/historian/`, types and command IDs updated to match. No API stability implied by the old name — we hadn't published to Marketplace yet.
