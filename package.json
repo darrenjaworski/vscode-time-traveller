@@ -134,17 +134,8 @@
         "category": "Time Traveller"
       }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "timeTraveller",
-          "title": "Time Traveller",
-          "icon": "resources/history.svg"
-        }
-      ]
-    },
     "views": {
-      "timeTraveller": [
+      "scm": [
         {
           "id": "timeTraveller.fileHistory",
           "name": "File History",

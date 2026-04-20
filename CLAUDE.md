@@ -71,8 +71,7 @@ When you add a module under `src/`:
   - **Stepping**: `timeTraveller.stepBaselineBackward` (older), `stepBaselineForward` (newer)
   - **Diff**: `timeTraveller.openDiffWithBaseline` (side-by-side editor)
   - **History panel**: `timeTraveller.history.*` family (refresh, setBaseline, setAsGlobalBaseline, openAtRevision, openDiff, askBlame, copySha, copySubject). Hidden from the Command Palette via `menus.commandPalette[].when: 'false'` — they only make sense when invoked from a tree row.
-- `viewsContainers.activitybar`: `timeTraveller` (icon: `resources/history.svg`)
-- `views["timeTraveller"]`: `timeTraveller.fileHistory`
+- `views.scm`: `timeTraveller.fileHistory` — lives alongside git's views inside the built-in Source Control sidebar (no dedicated Activity Bar container; the empty "Time Traveller (baseline)" row there is the `SourceControl` we register solely to attach `quickDiffProvider`)
 - `chatParticipants`: `timeTraveller.blame` with `/why` and `/story` slash commands (handler does not yet branch on `request.command` — add that when implementing them).
 - `configuration`: `timeTraveller.defaultBaseline` (not yet consumed by code).
 - `engines.vscode`: `^1.95.0` — required for the stable chat participant + `vscode.lm` APIs. Do not lower this.

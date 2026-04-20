@@ -14,9 +14,12 @@ export function activate(context: vscode.ExtensionContext): void {
 		vscode.workspace.registerTextDocumentContentProvider(TIME_TRAVELLER_SCHEME, quickDiff),
 	);
 
+	// This SourceControl exists solely to carry `quickDiffProvider` — the VS
+	// Code API has no standalone registration for quick diff. We never push
+	// resources into it, so the row in the SCM view is just a label.
 	const scm = vscode.scm.createSourceControl(
 		'timeTraveller',
-		'Time Traveller',
+		'Time Traveller (baseline)',
 		vscode.workspace.workspaceFolders?.[0]?.uri,
 	);
 	scm.quickDiffProvider = quickDiff;

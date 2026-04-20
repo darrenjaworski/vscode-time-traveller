@@ -46,7 +46,7 @@ describe('extension activation', () => {
 		expect(vscode.window.createStatusBarItem).toHaveBeenCalled();
 		expect(vscode.scm.createSourceControl).toHaveBeenCalledWith(
 			'timeTraveller',
-			'Time Traveller',
+			'Time Traveller (baseline)',
 			undefined,
 		);
 		expect(vscode.window.createTreeView).toHaveBeenCalledWith(
