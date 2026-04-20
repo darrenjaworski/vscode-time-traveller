@@ -4,6 +4,16 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-19
+
+### Fixed
+
+- `@historian` no longer includes a spurious `lines N–N` reference in the prompt when no text is selected. An empty cursor now produces file-level context (`File: <path>`) instead of fabricating a single-line selection from the cursor position.
+
+### Changed
+
+- README rewritten to lead with `@historian` — usage examples and slash-command table appear before the baseline/history features.
+
 ## [0.2.1] - 2026-04-19
 
 ### Added

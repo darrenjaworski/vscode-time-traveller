@@ -18,7 +18,13 @@ describe('normalizeCommand', () => {
 });
 
 describe('resolveSelection', () => {
-	function makeEditor(startLine: number, startChar: number, endLine: number, endChar: number, text = '') {
+	function makeEditor(
+		startLine: number,
+		startChar: number,
+		endLine: number,
+		endChar: number,
+		text = '',
+	) {
 		return {
 			selection: new vscode.Selection(startLine, startChar, endLine, endChar),
 			document: { getText: () => text },
