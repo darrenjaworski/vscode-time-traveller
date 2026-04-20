@@ -113,6 +113,20 @@ export class Range {
 
 export class Selection extends Range {}
 
+export class Position {
+	constructor(
+		public readonly line: number,
+		public readonly character: number,
+	) {}
+}
+
+export class Hover {
+	constructor(
+		public readonly contents: unknown,
+		public readonly range?: Range,
+	) {}
+}
+
 export class CodeLens {
 	command: unknown;
 	constructor(

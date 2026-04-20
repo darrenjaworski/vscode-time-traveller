@@ -324,6 +324,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show an 'Ask @blame why this changed' CodeLens above each hunk in the gutter diff."
+        },
+        "timeTraveller.hover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the commit that last touched a line as a hover tooltip, but only on lines that are changed relative to the current baseline."
         }
       }
     }

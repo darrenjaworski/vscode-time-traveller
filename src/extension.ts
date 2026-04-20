@@ -4,6 +4,7 @@ import { pickBaselineRef } from './baselinePicker';
 import { registerBlameParticipant } from './chat';
 import { registerHunkCodeLens } from './codeLens';
 import { registerHistoryView } from './history/view';
+import { registerChangeHover } from './hover';
 import { openDiffWithBaseline, stepBaseline } from './multiBaseline';
 import { TimeTravellerQuickDiff, TIME_TRAVELLER_SCHEME } from './quickDiff';
 
@@ -101,6 +102,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	context.subscriptions.push(registerHistoryView(baseline));
 	context.subscriptions.push(registerHunkCodeLens(baseline));
+	context.subscriptions.push(registerChangeHover(baseline));
 	context.subscriptions.push(registerBlameParticipant(baseline));
 }
 
