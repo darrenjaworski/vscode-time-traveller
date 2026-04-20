@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { BlameLine } from '../git/cli';
 import { composeEvidence, recordToSummary } from './evidence';
 import type { Evidence } from './evidence';
-import { buildUserPrompt, compressRanges, formatShortTimestamp, systemPrompt } from './prompt';
+import { buildUserPrompt, compressRanges, formatSmartTimestamp, systemPrompt } from './prompt';
+
+const NOW = new Date('2026-04-19T12:00:00Z');
 
 function rec(sha: string, subject: string) {
 	return {
@@ -112,7 +114,7 @@ describe('buildUserPrompt', () => {
 		expect(prompt).toMatch(/bbbbbbb.*fix edge case.*3/);
 	});
 
-	it('blame bullets include author and a short UTC timestamp for every SHA', () => {
+	it('blame bullets include author and timestamp; same-day collapses to HH:MM', () => {
 		const ev = composeEvidence({
 			fileRecords: [],
 			blameLines: [
@@ -121,26 +123,38 @@ describe('buildUserPrompt', () => {
 					line: 1,
 					author: 'Alice',
 					authorEmail: 'alice@example.com',
-					authorTime: Math.floor(new Date('2026-04-19T12:34:00Z').getTime() / 1000),
+					authorTime: Math.floor(new Date('2026-04-19T08:34:00Z').getTime() / 1000),
 					summary: 'initial',
 					content: '',
 				},
 			],
 		});
-		const prompt = buildUserPrompt(ev, 'default', '');
+		const prompt = buildUserPrompt(ev, 'default', '', NOW);
 		expect(prompt).toContain('Alice');
-		expect(prompt).toContain('2026-04-19 12:34');
+		expect(prompt).toContain('08:34');
+		expect(prompt).not.toContain('Apr');
 	});
 
-	it('commit blocks carry shortSha + author + yyyy-mm-dd HH:MM on every citation', () => {
+	it('same-day commit blocks show `HH:MM` only', () => {
 		const fileCommits = [
 			recordToSummary({
 				...rec('a'.repeat(40), 'Did the thing'),
 				authorDate: '2026-04-19T09:05:00Z',
 			}),
 		];
-		const prompt = buildUserPrompt(baseEv({ fileCommits }), 'story', '');
-		expect(prompt).toContain('`aaaaaaa` · Alice · 2026-04-19 09:05 — Did the thing');
+		const prompt = buildUserPrompt(baseEv({ fileCommits }), 'story', '', NOW);
+		expect(prompt).toContain('`aaaaaaa` · Alice · 09:05 — Did the thing');
+	});
+
+	it('older commit blocks fall back to `Mon D, YYYY`', () => {
+		const fileCommits = [
+			recordToSummary({
+				...rec('b'.repeat(40), 'Older work'),
+				authorDate: '2025-11-03T09:05:00Z',
+			}),
+		];
+		const prompt = buildUserPrompt(baseEv({ fileCommits }), 'story', '', NOW);
+		expect(prompt).toContain('`bbbbbbb` · Alice · Nov 3, 2025 — Older work');
 	});
 
 	it('caps the file log so prompts do not blow out the context window', () => {
@@ -162,13 +176,28 @@ describe('buildUserPrompt', () => {
 	});
 });
 
-describe('formatShortTimestamp', () => {
-	it('renders yyyy-mm-dd HH:MM in UTC regardless of local timezone', () => {
-		expect(formatShortTimestamp(new Date('2026-04-19T12:34:56Z'))).toBe('2026-04-19 12:34');
+describe('formatSmartTimestamp', () => {
+	it('collapses to `HH:MM` when the commit is on the same UTC day as now', () => {
+		expect(formatSmartTimestamp(new Date('2026-04-19T08:34:00Z'), NOW)).toBe('08:34');
+		expect(formatSmartTimestamp(new Date('2026-04-19T23:59:00Z'), NOW)).toBe('23:59');
 	});
 
-	it('zero-pads single-digit months/days/hours/minutes', () => {
-		expect(formatShortTimestamp(new Date('2026-01-02T03:04:05Z'))).toBe('2026-01-02 03:04');
+	it('falls back to `Mon D, YYYY` for earlier dates', () => {
+		expect(formatSmartTimestamp(new Date('2026-04-18T23:59:00Z'), NOW)).toBe('Apr 18, 2026');
+		expect(formatSmartTimestamp(new Date('2025-11-03T09:05:00Z'), NOW)).toBe('Nov 3, 2025');
+	});
+
+	it('falls back to `Mon D, YYYY` for later dates too (clock skew, future commits)', () => {
+		expect(formatSmartTimestamp(new Date('2026-04-20T00:01:00Z'), NOW)).toBe('Apr 20, 2026');
+	});
+
+	it('uses the UTC calendar day, so 23:30 on "yesterday" renders as a date', () => {
+		const now = new Date('2026-04-20T00:05:00Z');
+		expect(formatSmartTimestamp(new Date('2026-04-19T23:30:00Z'), now)).toBe('Apr 19, 2026');
+	});
+
+	it('zero-pads single-digit hours and minutes', () => {
+		expect(formatSmartTimestamp(new Date('2026-04-19T03:04:05Z'), NOW)).toBe('03:04');
 	});
 });
 

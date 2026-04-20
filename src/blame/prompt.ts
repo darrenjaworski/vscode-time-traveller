@@ -27,6 +27,7 @@ export function buildUserPrompt(
 	evidence: Evidence,
 	command: BlameCommand,
 	userPrompt: string,
+	now: Date = new Date(),
 ): string {
 	const sections: string[] = [];
 
@@ -37,15 +38,15 @@ export function buildUserPrompt(
 	}
 
 	if (evidence.referencedCommits.length > 0) {
-		sections.push(referencedCommitsSection(evidence.referencedCommits));
+		sections.push(referencedCommitsSection(evidence.referencedCommits, now));
 	}
 
 	if (evidence.blameLines && evidence.blameLines.length > 0) {
-		sections.push(blameSection(evidence));
+		sections.push(blameSection(evidence, now));
 	}
 
 	if (evidence.fileCommits.length > 0) {
-		sections.push(fileLogSection(evidence, command));
+		sections.push(fileLogSection(evidence, command, now));
 	}
 
 	if (evidence.filterDescription) {
@@ -80,10 +81,11 @@ function selectionSection(selection: NonNullable<Evidence['selection']>): string
 	].join('\n');
 }
 
-function referencedCommitsSection(commits: CommitSummary[]): string {
-	return ['Commits the user explicitly asked about:', ...commits.map(formatCommitBlock)].join(
-		'\n\n',
-	);
+function referencedCommitsSection(commits: CommitSummary[], now: Date): string {
+	return [
+		'Commits the user explicitly asked about:',
+		...commits.map((c) => formatCommitBlock(c, now)),
+	].join('\n\n');
 }
 
 interface BlameGroup {
@@ -94,7 +96,7 @@ interface BlameGroup {
 	lines: number[];
 }
 
-function blameSection(evidence: Evidence): string {
+function blameSection(evidence: Evidence, now: Date): string {
 	const lines = evidence.blameLines ?? [];
 	const byShaRaw = new Map<string, BlameGroup>();
 	for (const l of lines) {
@@ -113,23 +115,23 @@ function blameSection(evidence: Evidence): string {
 	}
 	const bullets = Array.from(byShaRaw.values()).map(
 		(rec) =>
-			`- \`${rec.sha.slice(0, 7)}\` · ${rec.author} · ${formatShortTimestamp(rec.timestamp)} — ${rec.summary} — lines ${compressRanges(rec.lines)}`,
+			`- \`${rec.sha.slice(0, 7)}\` · ${rec.author} · ${formatSmartTimestamp(rec.timestamp, now)} — ${rec.summary} — lines ${compressRanges(rec.lines)}`,
 	);
 	return ['Blame for the selected lines:', ...bullets].join('\n');
 }
 
-function fileLogSection(evidence: Evidence, command: BlameCommand): string {
+function fileLogSection(evidence: Evidence, command: BlameCommand, now: Date): string {
 	const header =
 		command === 'story'
 			? 'File history (newest → oldest):'
 			: 'Recent file history (newest → oldest):';
 	const capped = evidence.fileCommits.slice(0, COMMIT_CAP);
-	return [header, ...capped.map(formatCommitBlock)].join('\n\n');
+	return [header, ...capped.map((c) => formatCommitBlock(c, now))].join('\n\n');
 }
 
-function formatCommitBlock(c: CommitSummary): string {
+function formatCommitBlock(c: CommitSummary, now: Date): string {
 	const mergeTag = c.isMerge ? ' · merge' : '';
-	const header = `\`${c.shortSha}\` · ${c.authorName} · ${formatShortTimestamp(c.authorDate)}${mergeTag} — ${c.subject}`;
+	const header = `\`${c.shortSha}\` · ${c.authorName} · ${formatSmartTimestamp(c.authorDate, now)}${mergeTag} — ${c.subject}`;
 	if (!c.body) return header;
 	const body = c.body
 		.split('\n')
@@ -138,14 +140,39 @@ function formatCommitBlock(c: CommitSummary): string {
 	return `${header}\n${body}`;
 }
 
+const SHORT_MONTHS = [
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec',
+];
+
 /**
- * Compact UTC timestamp: "yyyy-mm-dd HH:MM". Short enough to inline on every
- * commit citation without blowing out the prompt, detailed enough to
- * disambiguate multiple same-day commits.
+ * Smart timestamp for commit citations. If the commit happened on the same
+ * UTC calendar day as `now`, emit just `HH:MM`; otherwise emit `Mon D, YYYY`.
+ * Keeps the prompt compact while staying unambiguous across any span of
+ * history — a "today" citation reads like an event, an older one reads like
+ * a record.
  */
-export function formatShortTimestamp(date: Date): string {
-	const iso = date.toISOString();
-	return `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
+export function formatSmartTimestamp(date: Date, now: Date): string {
+	const sameDay =
+		date.getUTCFullYear() === now.getUTCFullYear() &&
+		date.getUTCMonth() === now.getUTCMonth() &&
+		date.getUTCDate() === now.getUTCDate();
+	if (sameDay) {
+		const h = String(date.getUTCHours()).padStart(2, '0');
+		const m = String(date.getUTCMinutes()).padStart(2, '0');
+		return `${h}:${m}`;
+	}
+	return `${SHORT_MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 }
 
 /** "1,2,3,5,6,9" → "1-3, 5-6, 9" — keeps the blame summary terse. */
