@@ -271,7 +271,7 @@ export function parseStashList(stdout: string): StashRecord[] {
 
 /**
  * `git diff --unified=0 <ref> -- <path>` — just the hunk headers, no context
- * lines. Used by the CodeLens provider to position "Ask @blame" lenses above
+ * lines. Used by the CodeLens provider to position "Ask @historian" lenses above
  * each changed block.
  */
 export async function getFileDiff(repoRoot: string, ref: string, relPath: string): Promise<string> {

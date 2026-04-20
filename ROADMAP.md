@@ -1,11 +1,11 @@
 # Roadmap — Git Time Traveller
 
-A VS Code extension that marries git history with LLM-powered narrative. Pick _any_ commit, branch, tag, or stash as the gutter diff baseline, then ask `@blame` _why_ a line changed — grounded in commit messages, PR metadata, and surrounding history.
+A VS Code extension that marries git history with LLM-powered narrative. Pick _any_ commit, branch, tag, or stash as the gutter diff baseline, then ask `@historian` _why_ a line changed — grounded in commit messages, PR metadata, and surrounding history.
 
 ## Pillars
 
 1. **Dynamic baseline diff** — `QuickDiffProvider` whose baseline is a user-chosen git ref, not just `HEAD`.
-2. **Narrative blame** — a `@blame` chat participant (using `vscode.lm`) that explains changes in plain English, citing commits and PRs.
+2. **Narrative history** — an `@historian` chat participant (using `vscode.lm`) that explains changes in plain English, citing commits and PRs.
 3. **Frictionless navigation** — one-click hops between a line's versions across history.
 4. **File history panel** — a traditional, always-visible log of how the current file got to now, with one-click hops to any past version.
 
@@ -16,7 +16,7 @@ A VS Code extension that marries git history with LLM-powered narrative. Pick _a
 - [x] Extension manifest, TypeScript build, activation events
 - [x] Command palette entries (stubs)
 - [x] `QuickDiffProvider` registered against a custom `git-time-traveller:` URI scheme
-- [x] `@blame` chat participant registered with a placeholder handler
+- [x] `@historian` chat participant registered with a placeholder handler
 - [x] CI (lint + `vsce package` smoke build)
 - [ ] Manual test checklist in `CONTRIBUTING.md`
 
@@ -39,7 +39,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 
 ### Render strategy (pick before starting)
 
-- **A. Dedicated `TreeView`** _(assumed default)_ — `TreeDataProvider` in a custom Activity Bar container. Matches the "traditional" SourceTree/Fork log shape, full control over grouping and inline actions, cleanest integration with baseline + `@blame`.
+- **A. Dedicated `TreeView`** _(assumed default)_ — `TreeDataProvider` in a custom Activity Bar container. Matches the "traditional" SourceTree/Fork log shape, full control over grouping and inline actions, cleanest integration with baseline + `@historian`.
 - **B. `TimelineProvider`** — plugs into VS Code's built-in Timeline view alongside git and local-save sources. Smallest surface area, but less discoverable and styling is out of our hands.
 - **C. Webview** — max visual fidelity (graph rendering, avatars, animations). Highest cost and own message-passing layer; keep as an escape hatch.
 
@@ -61,7 +61,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 - [x] Context menu:
   - [x] Set as baseline (default — per-file) + "Set as workspace baseline" escape hatch
   - [x] Open file at this revision (read-only)
-  - [x] Ask `@blame` about this commit
+  - [x] Ask `@historian` about this commit
   - [x] Copy commit SHA
   - [x] Copy subject
   - [x] Open on GitHub/GitLab/Bitbucket (when a known remote is present)
@@ -91,7 +91,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 ### Integration with the rest of the extension
 
 - [x] `BaselineStore` stays the single source of truth — the panel reads it (to mark the current baseline row) and writes to it (on primary click, per-file scope)
-- [x] "Ask `@blame` about this commit" prefills the chat via `workbench.action.chat.open` with the SHA as context. The chat handler still needs a commit-context code path (Phase 3).
+- [x] "Ask `@historian` about this commit" prefills the chat via `workbench.action.chat.open` with the SHA as context. The chat handler still needs a commit-context code path (Phase 3).
 - [~] Status bar "Reveal in File History" — free via VS Code's auto-generated `workbench.view.extension.timeTraveller` focus command; explicit command entry still deferred
 
 ### Edge cases
@@ -107,7 +107,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 
 - [ ] Opening any tracked file populates the panel within 300 ms for repos with ≤10k commits touching that file
 - [ ] Clicking a row updates gutter diff in the active editor without reloading the document
-- [ ] "Ask @blame about this commit" lands in chat with the SHA already in the prompt
+- [ ] "Ask @historian about this commit" lands in chat with the SHA already in the prompt
 - [ ] Panel survives branch switches, merges, rebases, and stashes without stale entries
 
 ## Phase 2 — Multi-baseline & scoping
@@ -118,12 +118,12 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 - [x] "Stepping" commands: move baseline ±1 commit along `git log -- <file>` — `timeTraveller.stepBaselineBackward` / `.stepBaselineForward`, writes to the per-file slot
 - [x] Diff editor shortcut: open `git-time-traveller:` URI side-by-side — `timeTraveller.openDiffWithBaseline`
 
-## Phase 3 — `@blame` chat participant (narrative history)
+## Phase 3 — `@historian` chat participant (narrative history)
 
-Goal: ask `@blame` about a line, range, or file and get a _why_, not just a _who_.
+Goal: ask `@historian` about a line, range, or file and get a _why_, not just a _who_.
 
 - [x] Handler reads the active selection / cursor position from the chat context
-- [x] Gather evidence: `git blame -w` on the selected range, `git log --follow` on the file (default + `/blame-since <ref>` + `/author <pattern>` variants), commit bodies
+- [x] Gather evidence: `git blame -w` on the selected range, `git log --follow` on the file (default + `/since <ref>` + `/author <pattern>` variants), commit bodies
 - [ ] Parent-diff snippets — deferred; current evidence relies on commit bodies only
 - [ ] Fetch PR context when a remote is GitHub/GitLab (commit → PR → body + review comments) — deferred, needs `vscode.authentication` + API client
 - [x] Prompt template that includes selection excerpt + blame-by-SHA rollup + referenced commits + file log
@@ -131,13 +131,13 @@ Goal: ask `@blame` about a line, range, or file and get a _why_, not just a _who
 - [x] Slash commands:
   - [x] `/why` — explain why the selected lines changed
   - [x] `/story` — narrative timeline of a file or symbol
-  - [x] `/blame-since <ref>` — focus on changes since a ref
+  - [x] `/since <ref>` — focus on changes since a ref
   - [x] `/author <pattern>` — filter the history to one author (pattern matches git's `--author=` regex against name+email)
 - [x] Follow-up suggestions (`followupProvider`) for drill-down — cross-command and blame-aware
 
 ## Phase 4 — Inline UX
 
-- [x] CodeLens above each hunk: "Ask @blame why this changed" — `src/codeLens.ts`, backed by pure `parseDiffHunks` + `codeLensLineForHunk`. Click selects the hunk's lines and opens `@blame` with a `why is this the way it is?` seed prompt. Gated by `timeTraveller.codeLens.enabled` (default true).
+- [x] CodeLens above each hunk: "Ask @historian why this changed" — `src/codeLens.ts`, backed by pure `parseDiffHunks` + `codeLensLineForHunk`. Click selects the hunk's lines and opens `@historian` with a `why is this the way it is?` seed prompt. Gated by `timeTraveller.codeLens.enabled` (default true).
 - [ ] Gutter hover: top-of-mind commit message, author, PR link — deferred; needs caching + staleness handling
 - [ ] Inline chat entry point via `vscode.chat` `participantDetected` API — deferred; API needs investigation
 - [ ] Decoration of churn hotspots (lines that have changed N+ times since baseline) — deferred

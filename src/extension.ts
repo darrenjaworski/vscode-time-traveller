@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { BaselineStore } from './baseline';
 import { pickBaselineRef } from './baselinePicker';
-import { registerBlameParticipant } from './chat';
+import { registerHistorianParticipant } from './chat';
 import { registerHunkCodeLens } from './codeLens';
 import { registerHistoryView } from './history/view';
 import { registerChangeHover } from './hover';
@@ -103,7 +103,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(registerHistoryView(baseline));
 	context.subscriptions.push(registerHunkCodeLens(baseline));
 	context.subscriptions.push(registerChangeHover(baseline));
-	context.subscriptions.push(registerBlameParticipant(baseline));
+	context.subscriptions.push(registerHistorianParticipant(baseline));
 }
 
 export function deactivate(): void {

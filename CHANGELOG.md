@@ -4,17 +4,22 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+### Changed
+
+- **The chat participant is now `@historian`** (was `@blame`). The old name implied attribution only; the new name matches what we actually do — narrate git history, explain why code changed, walk the story. Slash command `/blame-since` also renamed to `/since`. Internal refactor: `src/blame/` moved to `src/historian/`, types and command IDs updated to match. No API stability implied by the old name — we hadn't published to Marketplace yet.
+
 ### Added
 
-- **CodeLens above each hunk** in the gutter diff: `$(comment-discussion) Ask @blame why this changed`. Clicking it selects the hunk's lines and opens the chat with `@blame why is this the way it is?`. Toggle via `timeTraveller.codeLens.enabled` (default on).
+- **Hover on changed lines** shows the last-touching commit (subject · shortSha · author · date), but only on lines that are changed relative to the current baseline. Toggle via `timeTraveller.hover.enabled` (default on).
+- **CodeLens above each hunk** in the gutter diff: `$(comment-discussion) Ask @historian why this changed`. Clicking it selects the hunk's lines and opens the chat with `@historian why is this the way it is?`. Toggle via `timeTraveller.codeLens.enabled` (default on).
 - **Stash enumeration** in the baseline picker — new "Stashes" section backed by `git stash list`.
 - **"Last release" preset** in the picker's Scopes section — picks the newest stable semver tag (`v`-prefix tolerated, prereleases ignored, numeric comparison so `v1.10.0` beats `v1.9.0`).
 - **`timeTraveller.defaultBaseline`** is now consumed: QuickDiff's ref resolution falls through to this setting when no stored baseline is present, so you can pin the workspace to `origin/main` and forget about it.
-- New setting `timeTraveller.codeLens.enabled` for the Phase 4 CodeLens toggle.
+- New settings `timeTraveller.codeLens.enabled` and `timeTraveller.hover.enabled` for the Phase 4 toggles.
 
 ## [0.1.0] - 2026-04-19
 
-First public release. Core pillars in place: dynamic baseline diff, file history panel, per-file baselines, `@blame` chat participant.
+First public release. Core pillars in place: dynamic baseline diff, file history panel, per-file baselines, `@blame` chat participant. _(The chat participant was renamed to `@historian` post-0.1.0 — see Unreleased.)_
 
 ### Added
 

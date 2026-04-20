@@ -1,5 +1,5 @@
 /**
- * Pure prompt assembly for the @blame chat participant. Given an evidence
+ * Pure prompt assembly for the @historian chat participant. Given an evidence
  * bundle and the slash-command variant, produces the `content` strings that
  * the orchestrator wraps into `vscode.LanguageModelChatMessage.User(...)`.
  *
@@ -8,10 +8,10 @@
  */
 import type { CommitSummary, Evidence } from './evidence';
 
-export type BlameCommand = 'why' | 'story' | 'blame-since' | 'author' | 'default';
+export type HistorianCommand = 'why' | 'story' | 'since' | 'author' | 'default';
 
 const SYSTEM_PROMPT = [
-	'You are @blame, a narrator of git history for the Time Traveller extension.',
+	'You are @historian, a narrator of git history for the Time Traveller extension.',
 	'Your job is to explain *why* code changed, not just who changed it. Ground every claim in the commit messages and diffs you are given; never invent history.',
 	'Cite commits inline as `<shortSha>: <subject>` and prefer quoting subject lines verbatim over paraphrasing them.',
 	'Keep responses focused and scannable. Use short paragraphs or bullets. If the evidence is thin, say so plainly — it is better than guessing.',
@@ -25,7 +25,7 @@ export function systemPrompt(): string {
 
 export function buildUserPrompt(
 	evidence: Evidence,
-	command: BlameCommand,
+	command: HistorianCommand,
 	userPrompt: string,
 	now: Date = new Date(),
 ): string {
@@ -58,12 +58,12 @@ export function buildUserPrompt(
 	return sections.join('\n\n');
 }
 
-function taskSection(command: BlameCommand, userPrompt: string): string {
+function taskSection(command: HistorianCommand, userPrompt: string): string {
 	const trimmed = userPrompt.trim();
 	const defaultAsk =
 		command === 'story'
 			? 'Give a narrative timeline of how this file got to its current shape. Highlight turning points and keep it chronological (oldest to newest).'
-			: command === 'blame-since'
+			: command === 'since'
 				? 'Explain what meaningfully changed in this file since the given reference, grouped by theme.'
 				: command === 'author'
 					? 'Summarize the changes this author has made to this file, with specific examples.'
@@ -122,7 +122,7 @@ function blameSection(evidence: Evidence, now: Date): string {
 	return ['Blame for the selected lines:', ...bullets].join('\n');
 }
 
-function fileLogSection(evidence: Evidence, command: BlameCommand, now: Date): string {
+function fileLogSection(evidence: Evidence, command: HistorianCommand, now: Date): string {
 	const header =
 		command === 'story'
 			? 'File history (newest → oldest):'

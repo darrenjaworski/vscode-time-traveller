@@ -119,13 +119,16 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 			},
 		),
 
-		vscode.commands.registerCommand('timeTraveller.history.askBlame', async (node: HistoryNode) => {
-			if (node?.kind !== 'entry') return;
-			const query = `@blame why did commit ${node.entry.shortSha} (${node.entry.subject}) change ${node.relPath}?`;
-			await vscode.commands.executeCommand('workbench.action.chat.open', { query });
-		}),
+		vscode.commands.registerCommand(
+			'timeTraveller.history.askHistorian',
+			async (node: HistoryNode) => {
+				if (node?.kind !== 'entry') return;
+				const query = `@historian why did commit ${node.entry.shortSha} (${node.entry.subject}) change ${node.relPath}?`;
+				await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+			},
+		),
 
-		vscode.commands.registerCommand('timeTraveller.history.askBlameAboutFile', async () => {
+		vscode.commands.registerCommand('timeTraveller.history.askHistorianAboutFile', async () => {
 			const ctx = provider.getCurrentContext();
 			const activeUri = vscode.window.activeTextEditor?.document.uri;
 			const rel =
@@ -133,12 +136,12 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 				(activeUri?.scheme === 'file' ? vscode.workspace.asRelativePath(activeUri) : undefined);
 			if (!rel) {
 				vscode.window.setStatusBarMessage(
-					'Open a tracked file to ask @blame about its history.',
+					'Open a tracked file to ask @historian about its history.',
 					2500,
 				);
 				return;
 			}
-			const query = `@blame /story ${rel}`;
+			const query = `@historian /story ${rel}`;
 			await vscode.commands.executeCommand('workbench.action.chat.open', { query });
 		}),
 

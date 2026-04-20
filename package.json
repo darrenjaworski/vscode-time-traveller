@@ -1,7 +1,7 @@
 {
   "name": "vscode-time-traveller",
   "displayName": "Git Time Traveller",
-  "description": "Pick any commit, branch, or stash as the gutter diff baseline, and ask @blame why a line changed.",
+  "description": "Pick any commit, branch, or stash as the gutter diff baseline, and ask @historian why a line changed.",
   "version": "0.1.0",
   "publisher": "darrenjaworski",
   "author": "Darren Jaworski <darrenjaworski@gmail.com>",
@@ -77,14 +77,14 @@
         "icon": "$(globe)"
       },
       {
-        "command": "timeTraveller.history.askBlameAboutFile",
-        "title": "Ask @blame about this file",
+        "command": "timeTraveller.history.askHistorianAboutFile",
+        "title": "Ask @historian about this file",
         "category": "Time Traveller",
         "icon": "$(comment-discussion)"
       },
       {
-        "command": "timeTraveller.askBlameForHunk",
-        "title": "Ask @blame why this hunk changed",
+        "command": "timeTraveller.askHistorianForHunk",
+        "title": "Ask @historian why this hunk changed",
         "category": "Time Traveller",
         "icon": "$(comment-discussion)"
       },
@@ -130,8 +130,8 @@
         "icon": "$(git-compare)"
       },
       {
-        "command": "timeTraveller.history.askBlame",
-        "title": "Ask @blame about this commit",
+        "command": "timeTraveller.history.askHistorian",
+        "title": "Ask @historian about this commit",
         "category": "Time Traveller",
         "icon": "$(comment-discussion)"
       },
@@ -158,7 +158,7 @@
     "menus": {
       "view/title": [
         {
-          "command": "timeTraveller.history.askBlameAboutFile",
+          "command": "timeTraveller.history.askHistorianAboutFile",
           "when": "view == timeTraveller.fileHistory",
           "group": "navigation@1"
         },
@@ -180,7 +180,7 @@
           "group": "inline@2"
         },
         {
-          "command": "timeTraveller.history.askBlame",
+          "command": "timeTraveller.history.askHistorian",
           "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
           "group": "inline@3"
         },
@@ -215,7 +215,7 @@
           "group": "2_open@4"
         },
         {
-          "command": "timeTraveller.history.askBlame",
+          "command": "timeTraveller.history.askHistorian",
           "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
           "group": "3_chat@1"
         },
@@ -248,7 +248,7 @@
           "when": "false"
         },
         {
-          "command": "timeTraveller.history.askBlame",
+          "command": "timeTraveller.history.askHistorian",
           "when": "false"
         },
         {
@@ -276,34 +276,34 @@
           "when": "false"
         },
         {
-          "command": "timeTraveller.history.askBlameAboutFile",
+          "command": "timeTraveller.history.askHistorianAboutFile",
           "when": "false"
         },
         {
-          "command": "timeTraveller.askBlameForHunk",
+          "command": "timeTraveller.askHistorianForHunk",
           "when": "false"
         }
       ]
     },
     "chatParticipants": [
       {
-        "id": "timeTraveller.blame",
-        "name": "blame",
-        "fullName": "Blame",
-        "description": "Explain why a line changed, grounded in git history and PR context.",
+        "id": "timeTraveller.historian",
+        "name": "historian",
+        "fullName": "Historian",
+        "description": "Narrate the git history of your code — who, when, and most importantly *why*.",
         "isSticky": true,
         "commands": [
           {
             "name": "why",
-            "description": "Explain why the selected lines changed"
+            "description": "Explain why the selected lines look the way they do"
           },
           {
             "name": "story",
-            "description": "Narrative timeline of the active file or symbol"
+            "description": "Narrative timeline of the active file"
           },
           {
-            "name": "blame-since",
-            "description": "Explain what changed in this file since a ref (e.g. `/blame-since v1.2.0`)"
+            "name": "since",
+            "description": "Explain what changed in this file since a ref (e.g. `/since v1.2.0`)"
           },
           {
             "name": "author",
@@ -323,7 +323,7 @@
         "timeTraveller.codeLens.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show an 'Ask @blame why this changed' CodeLens above each hunk in the gutter diff."
+          "description": "Show an 'Ask @historian why this changed' CodeLens above each hunk in the gutter diff."
         },
         "timeTraveller.hover.enabled": {
           "type": "boolean",

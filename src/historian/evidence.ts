@@ -36,11 +36,11 @@ export interface Evidence {
 	/** Commits that directly touch this file, newest → oldest. */
 	fileCommits: CommitSummary[];
 	/** Commits explicitly referenced by the user's prompt (e.g. from the
-	 * history panel's "Ask @blame about this commit" action). Shown first in
-	 * the prompt so the model focuses on them. */
+	 * history panel's "Ask @historian about this commit" action). Shown first
+	 * in the prompt so the model focuses on them. */
 	referencedCommits: CommitSummary[];
-	/** Filter targets surfaced to the user — e.g. the ref for `/blame-since`
-	 * or the author pattern for `/author`. Non-semantic, just a hint for the
+	/** Filter targets surfaced to the user — e.g. the ref for `/since` or
+	 * the author pattern for `/author`. Non-semantic, just a hint for the
 	 * prompt header. */
 	filterDescription?: string;
 }

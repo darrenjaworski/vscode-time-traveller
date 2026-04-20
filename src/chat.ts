@@ -1,8 +1,5 @@
 import * as vscode from 'vscode';
 import type { BaselineStore } from './baseline';
-import { citedShas, composeEvidence, extractShaMention, type Evidence } from './blame/evidence';
-import { suggestFollowups } from './blame/followups';
-import { buildUserPrompt, systemPrompt, type BlameCommand } from './blame/prompt';
 import { findRepository } from './git/api';
 import {
 	blameRange,
@@ -13,19 +10,22 @@ import {
 	type BlameLine,
 	type RawLogRecord,
 } from './git/cli';
+import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
+import { suggestFollowups } from './historian/followups';
+import { buildUserPrompt, systemPrompt, type HistorianCommand } from './historian/prompt';
 import { makeTimeTravellerUri } from './quickDiff';
 
 const FILE_LOG_CAP = 60;
 
 /**
- * Registers the `@blame` chat participant. The participant ID **must** match
- * `contributes.chatParticipants[].id` in `package.json`.
+ * Registers the `@historian` chat participant. The participant ID **must**
+ * match `contributes.chatParticipants[].id` in `package.json`.
  *
  * Flow: parse slash command → gather evidence (blame + log) → build prompt via
- * the pure helpers in `src/blame/*` → stream LM response → emit commit
+ * the pure helpers in `src/historian/*` → stream LM response → emit commit
  * references + follow-up suggestions.
  */
-export function registerBlameParticipant(baseline: BaselineStore): vscode.Disposable {
+export function registerHistorianParticipant(baseline: BaselineStore): vscode.Disposable {
 	const handler: vscode.ChatRequestHandler = async (request, _ctx, stream, token) => {
 		const command = normalizeCommand(request.command);
 		const editor = vscode.window.activeTextEditor;
@@ -42,7 +42,7 @@ export function registerBlameParticipant(baseline: BaselineStore): vscode.Dispos
 
 		if (!evidence) {
 			stream.markdown(
-				'Open a tracked file in a git repository and ask again. `@blame` needs a file under version control to work from.',
+				'Open a tracked file in a git repository and ask again. `@historian` needs a file under version control to work from.',
 			);
 			return {};
 		}
@@ -84,7 +84,7 @@ export function registerBlameParticipant(baseline: BaselineStore): vscode.Dispos
 		return { metadata: { command } };
 	};
 
-	const participant = vscode.chat.createChatParticipant('timeTraveller.blame', handler);
+	const participant = vscode.chat.createChatParticipant('timeTraveller.historian', handler);
 	participant.followupProvider = {
 		provideFollowups: (result) => {
 			const command = normalizeCommand(
@@ -96,7 +96,7 @@ export function registerBlameParticipant(baseline: BaselineStore): vscode.Dispos
 				label: f.label,
 				prompt: f.prompt,
 				command: f.command === 'default' ? undefined : f.command,
-				participant: 'timeTraveller.blame',
+				participant: 'timeTraveller.historian',
 			}));
 		},
 	};
@@ -104,7 +104,7 @@ export function registerBlameParticipant(baseline: BaselineStore): vscode.Dispos
 }
 
 interface GatherInputs {
-	command: BlameCommand;
+	command: HistorianCommand;
 	prompt: string;
 	editor: vscode.TextEditor | undefined;
 	fileUri: vscode.Uri | undefined;
@@ -121,9 +121,9 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 
 	const referencedSha = extractShaMention(prompt);
 	// When the prompt names a specific commit (e.g. from the history panel's
-	// "Ask @blame about this commit" action), treat the question as commit-
-	// focused and ignore whatever lines happen to be selected in the editor.
-	// The user is asking about the commit, not the selection.
+	// "Ask @historian about this commit" action), treat the question as
+	// commit-focused and ignore whatever lines happen to be selected in the
+	// editor. The user is asking about the commit, not the selection.
 	const commitFocused = referencedSha !== undefined;
 	const selection = !commitFocused && editor ? resolveSelection(editor, relPath) : undefined;
 	const { records, filterDescription } = await loadRecords(command, prompt, repoRoot, relPath);
@@ -159,18 +159,17 @@ function resolveSelection(editor: vscode.TextEditor, relPath: string): Evidence[
 }
 
 async function loadRecords(
-	command: BlameCommand,
+	command: HistorianCommand,
 	prompt: string,
 	repoRoot: string,
 	relPath: string,
 ): Promise<{ records: RawLogRecord[]; filterDescription?: string }> {
-	if (command === 'blame-since') {
+	if (command === 'since') {
 		const ref = firstArg(prompt);
 		if (!ref) {
 			return {
 				records: await logFile(repoRoot, relPath, FILE_LOG_CAP),
-				filterDescription:
-					'/blame-since needs a ref (e.g. `/blame-since v1.2.0`) — falling back to full log',
+				filterDescription: '/since needs a ref (e.g. `/since v1.2.0`) — falling back to full log',
 			};
 		}
 		return {
@@ -194,11 +193,11 @@ async function loadRecords(
 	return { records: await logFile(repoRoot, relPath, FILE_LOG_CAP) };
 }
 
-export function normalizeCommand(raw: string | undefined): BlameCommand {
+export function normalizeCommand(raw: string | undefined): HistorianCommand {
 	switch (raw) {
 		case 'why':
 		case 'story':
-		case 'blame-since':
+		case 'since':
 		case 'author':
 			return raw;
 		default:

@@ -5,7 +5,7 @@ describe('normalizeCommand', () => {
 	it('passes through the four known slash commands', () => {
 		expect(normalizeCommand('why')).toBe('why');
 		expect(normalizeCommand('story')).toBe('story');
-		expect(normalizeCommand('blame-since')).toBe('blame-since');
+		expect(normalizeCommand('since')).toBe('since');
 		expect(normalizeCommand('author')).toBe('author');
 	});
 

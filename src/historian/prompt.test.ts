@@ -35,7 +35,7 @@ describe('systemPrompt', () => {
 	it('tells the model to ground claims in evidence and not invent history', () => {
 		const p = systemPrompt();
 		expect(p).toContain('never invent');
-		expect(p).toContain('@blame');
+		expect(p).toContain('@historian');
 	});
 });
 
@@ -53,7 +53,7 @@ describe('buildUserPrompt', () => {
 
 	it('switches the task description per slash command', () => {
 		expect(buildUserPrompt(baseEv(), 'story', '')).toMatch(/narrative timeline/i);
-		expect(buildUserPrompt(baseEv(), 'blame-since', '')).toMatch(/since the given reference/i);
+		expect(buildUserPrompt(baseEv(), 'since', '')).toMatch(/since the given reference/i);
 		expect(buildUserPrompt(baseEv(), 'author', '')).toMatch(/this author/i);
 	});
 
@@ -192,11 +192,7 @@ describe('buildUserPrompt', () => {
 	});
 
 	it('surfaces a filter description when provided', () => {
-		const prompt = buildUserPrompt(
-			baseEv({ filterDescription: 'since v1.0.0' }),
-			'blame-since',
-			'',
-		);
+		const prompt = buildUserPrompt(baseEv({ filterDescription: 'since v1.0.0' }), 'since', '');
 		expect(prompt).toContain('Filter: since v1.0.0');
 	});
 });

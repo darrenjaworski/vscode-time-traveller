@@ -7,11 +7,11 @@ import { getFileDiff, relativeTo } from './git/cli';
 const CODE_LENS_SETTING = 'timeTraveller.codeLens.enabled';
 
 /**
- * Emits a "Ask @blame why this changed" CodeLens above each hunk in the
+ * Emits an "Ask @historian why this changed" CodeLens above each hunk in the
  * active file's diff against the current baseline. Kept thin: the hunk
  * parsing lives in `src/diff.ts` as a pure helper, and the follow-up
- * command (`timeTraveller.askBlameForHunk`) is registered in
- * `registerHunkCommands` below so callers can wire both in one call.
+ * command (`timeTraveller.askHistorianForHunk`) is registered below so
+ * callers can wire both in one call.
  */
 export class HunkCodeLensProvider implements vscode.CodeLensProvider {
 	private readonly changeEmitter = new vscode.EventEmitter<void>();
@@ -54,9 +54,9 @@ function makeLens(uri: vscode.Uri, hunk: Hunk, ref: string): vscode.CodeLens {
 	const line = codeLensLineForHunk(hunk);
 	const range = new vscode.Range(line, 0, line, 0);
 	return new vscode.CodeLens(range, {
-		title: '$(comment-discussion) Ask @blame why this changed',
-		command: 'timeTraveller.askBlameForHunk',
-		tooltip: `Open @blame focused on this hunk (baseline: ${ref}).`,
+		title: '$(comment-discussion) Ask @historian why this changed',
+		command: 'timeTraveller.askHistorianForHunk',
+		tooltip: `Open @historian focused on this hunk (baseline: ${ref}).`,
 		arguments: [uri, hunk],
 	});
 }
@@ -66,8 +66,8 @@ function isEnabled(): boolean {
 }
 
 /**
- * Registers both the CodeLens provider and the `askBlameForHunk` command it
- * invokes. Exposed as a single call so `extension.ts` stays skimmable.
+ * Registers both the CodeLens provider and the `askHistorianForHunk` command
+ * it invokes. Exposed as a single call so `extension.ts` stays skimmable.
  */
 export function registerHunkCodeLens(baseline: BaselineStore): vscode.Disposable {
 	const provider = new HunkCodeLensProvider(baseline);
@@ -83,18 +83,19 @@ export function registerHunkCodeLens(baseline: BaselineStore): vscode.Disposable
 		vscode.workspace.onDidSaveTextDocument(() => provider.refresh()),
 
 		vscode.commands.registerCommand(
-			'timeTraveller.askBlameForHunk',
+			'timeTraveller.askHistorianForHunk',
 			async (uri: vscode.Uri, hunk: Hunk) => {
 				if (!uri || !hunk) return;
 				const editor = await vscode.window.showTextDocument(uri);
-				// Select the hunk's lines so the @blame handler's selection-
-				// scoped path picks them up — no special chat-side wiring needed.
+				// Select the hunk's lines so the @historian handler's
+				// selection-scoped path picks them up — no special chat-side
+				// wiring needed.
 				const startLine = codeLensLineForHunk(hunk);
 				const endLine = Math.max(startLine, startLine + Math.max(hunk.newCount, 1) - 1);
 				editor.selection = new vscode.Selection(startLine, 0, endLine, Number.MAX_SAFE_INTEGER);
 				editor.revealRange(editor.selection, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 				await vscode.commands.executeCommand('workbench.action.chat.open', {
-					query: '@blame why is this the way it is?',
+					query: '@historian why is this the way it is?',
 				});
 			},
 		),

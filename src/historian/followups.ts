@@ -4,19 +4,22 @@
  *
  * Kept free of `vscode` so the suggestions can be reviewed in isolation.
  */
-import type { BlameCommand } from './prompt';
+import type { HistorianCommand } from './prompt';
 import type { Evidence } from './evidence';
 
-export interface BlameFollowup {
+export interface HistorianFollowup {
 	label: string;
 	prompt: string;
-	command?: BlameCommand;
+	command?: HistorianCommand;
 }
 
 const MAX_FOLLOWUPS = 4;
 
-export function suggestFollowups(command: BlameCommand, evidence: Evidence): BlameFollowup[] {
-	const out: BlameFollowup[] = [];
+export function suggestFollowups(
+	command: HistorianCommand,
+	evidence: Evidence,
+): HistorianFollowup[] {
+	const out: HistorianFollowup[] = [];
 	const mostRecent = evidence.fileCommits[0];
 	const topReferenced = evidence.referencedCommits[0];
 	const topBlame = evidence.blameLines?.[0];

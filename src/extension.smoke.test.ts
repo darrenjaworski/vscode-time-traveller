@@ -54,7 +54,7 @@ describe('extension activation', () => {
 			expect.any(Object),
 		);
 		expect(vscode.chat.createChatParticipant).toHaveBeenCalledWith(
-			'timeTraveller.blame',
+			'timeTraveller.historian',
 			expect.any(Function),
 		);
 	});
