@@ -14,6 +14,7 @@ src/**
 test/**
 **/*.map
 **/*.test.ts
+CLAUDE.md
 ROADMAP.md
 *.vsix
 coverage/**

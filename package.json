@@ -2,7 +2,7 @@
   "name": "vscode-time-traveller",
   "displayName": "Git Time Traveller",
   "description": "Pick any commit, branch, or stash as the gutter diff baseline, and ask @blame why a line changed.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "darrenjaworski",
   "author": "Darren Jaworski <darrenjaworski@gmail.com>",
   "license": "MIT",
