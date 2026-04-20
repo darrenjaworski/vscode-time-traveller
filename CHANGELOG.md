@@ -4,6 +4,14 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+### Added
+
+- **CodeLens above each hunk** in the gutter diff: `$(comment-discussion) Ask @blame why this changed`. Clicking it selects the hunk's lines and opens the chat with `@blame why is this the way it is?`. Toggle via `timeTraveller.codeLens.enabled` (default on).
+- **Stash enumeration** in the baseline picker — new "Stashes" section backed by `git stash list`.
+- **"Last release" preset** in the picker's Scopes section — picks the newest stable semver tag (`v`-prefix tolerated, prereleases ignored, numeric comparison so `v1.10.0` beats `v1.9.0`).
+- **`timeTraveller.defaultBaseline`** is now consumed: QuickDiff's ref resolution falls through to this setting when no stored baseline is present, so you can pin the workspace to `origin/main` and forget about it.
+- New setting `timeTraveller.codeLens.enabled` for the Phase 4 CodeLens toggle.
+
 ## [0.1.0] - 2026-04-19
 
 First public release. Core pillars in place: dynamic baseline diff, file history panel, per-file baselines, `@blame` chat participant.

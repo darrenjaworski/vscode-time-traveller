@@ -269,6 +269,21 @@ export function parseStashList(stdout: string): StashRecord[] {
 		.filter((r) => r.name.length > 0);
 }
 
+/**
+ * `git diff --unified=0 <ref> -- <path>` — just the hunk headers, no context
+ * lines. Used by the CodeLens provider to position "Ask @blame" lenses above
+ * each changed block.
+ */
+export async function getFileDiff(repoRoot: string, ref: string, relPath: string): Promise<string> {
+	const cmd = `git diff --unified=0 ${shellQuote(ref)} -- ${shellQuote(relPath.replace(/\\/g, '/'))}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return stdout;
+	} catch {
+		return '';
+	}
+}
+
 export async function getMergeBase(
 	repoRoot: string,
 	ref1: string,

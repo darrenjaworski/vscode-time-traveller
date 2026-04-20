@@ -111,6 +111,25 @@ export class Range {
 	}
 }
 
+export class Selection extends Range {}
+
+export class CodeLens {
+	command: unknown;
+	constructor(
+		public range: Range,
+		cmd?: unknown,
+	) {
+		this.command = cmd;
+	}
+}
+
+export const TextEditorRevealType = {
+	Default: 0,
+	InCenter: 1,
+	InCenterIfOutsideViewport: 2,
+	AtTop: 3,
+} as const;
+
 export const StatusBarAlignment = { Left: 1, Right: 2 } as const;
 export const QuickPickItemKind = { Default: 0, Separator: -1 } as const;
 
@@ -140,7 +159,16 @@ export const workspace = {
 	getWorkspaceFolder: vi.fn(() => undefined),
 	registerTextDocumentContentProvider: vi.fn(() => ({ dispose: vi.fn() })),
 	onDidSaveTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
+	onDidChangeConfiguration: vi.fn(() => ({ dispose: vi.fn() })),
 	asRelativePath: vi.fn((value: unknown) => String(value)),
+	getConfiguration: vi.fn(() => ({
+		get: vi.fn(<T>(_key: string, def?: T) => def),
+	})),
+};
+
+export const languages = {
+	registerCodeLensProvider: vi.fn(() => ({ dispose: vi.fn() })),
+	registerHoverProvider: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
 export const commands = {

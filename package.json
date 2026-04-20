@@ -83,6 +83,12 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "timeTraveller.askBlameForHunk",
+        "title": "Ask @blame why this hunk changed",
+        "category": "Time Traveller",
+        "icon": "$(comment-discussion)"
+      },
+      {
         "command": "timeTraveller.history.openDiffPrev",
         "title": "Compare with previous revision",
         "category": "Time Traveller",
@@ -272,6 +278,10 @@
         {
           "command": "timeTraveller.history.askBlameAboutFile",
           "when": "false"
+        },
+        {
+          "command": "timeTraveller.askBlameForHunk",
+          "when": "false"
         }
       ]
     },
@@ -308,7 +318,12 @@
         "timeTraveller.defaultBaseline": {
           "type": "string",
           "default": "HEAD",
-          "description": "Default git ref to diff against when no baseline is picked."
+          "description": "Default git ref to diff against when no baseline is picked. Set to something like `origin/main` to always see gutter diffs against your integration branch."
+        },
+        "timeTraveller.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show an 'Ask @blame why this changed' CodeLens above each hunk in the gutter diff."
         }
       }
     }

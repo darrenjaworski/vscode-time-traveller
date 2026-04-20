@@ -137,10 +137,10 @@ Goal: ask `@blame` about a line, range, or file and get a _why_, not just a _who
 
 ## Phase 4 — Inline UX
 
-- [ ] CodeLens above each hunk: "Ask @blame why this changed"
-- [ ] Gutter hover: top-of-mind commit message, author, PR link
-- [ ] Inline chat entry point via `vscode.chat` `participantDetected` API
-- [ ] Decoration of churn hotspots (lines that have changed N+ times since baseline)
+- [x] CodeLens above each hunk: "Ask @blame why this changed" — `src/codeLens.ts`, backed by pure `parseDiffHunks` + `codeLensLineForHunk`. Click selects the hunk's lines and opens `@blame` with a `why is this the way it is?` seed prompt. Gated by `timeTraveller.codeLens.enabled` (default true).
+- [ ] Gutter hover: top-of-mind commit message, author, PR link — deferred; needs caching + staleness handling
+- [ ] Inline chat entry point via `vscode.chat` `participantDetected` API — deferred; API needs investigation
+- [ ] Decoration of churn hotspots (lines that have changed N+ times since baseline) — deferred
 
 ## Phase 5 — Polish & distribution
 
