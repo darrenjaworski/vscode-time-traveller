@@ -4,7 +4,7 @@ A VS Code extension that marries git history with LLM-powered narrative. Pick _a
 
 ## Pillars
 
-1. **Time-travel quick diff** — `QuickDiffProvider` whose baseline is a user-chosen git ref, not just `HEAD`.
+1. **Dynamic baseline diff** — `QuickDiffProvider` whose baseline is a user-chosen git ref, not just `HEAD`.
 2. **Narrative blame** — a `@blame` chat participant (using `vscode.lm`) that explains changes in plain English, citing commits and PRs.
 3. **Frictionless navigation** — one-click hops between a line's versions across history.
 4. **File history panel** — a traditional, always-visible log of how the current file got to now, with one-click hops to any past version.

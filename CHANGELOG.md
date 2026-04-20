@@ -6,11 +6,11 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [0.1.0] - 2026-04-19
 
-First public release. Core pillars in place: time-travel quick diff, file history panel, per-file baselines, `@blame` chat participant.
+First public release. Core pillars in place: dynamic baseline diff, file history panel, per-file baselines, `@blame` chat participant.
 
 ### Added
 
-**Time-travel quick diff**
+**Dynamic baseline diff**
 
 - `QuickDiffProvider` on a custom `git-time-traveller:` URI scheme; gutter decorations can be computed against any git ref, not just `HEAD`.
 - Sectioned baseline picker: HEAD, clear, custom ref, auto-detected merge-base targets (`main` / `master` / `develop` / `trunk`, local first with `origin/<name>` fallback), branches, tags, remote branches, recent commits.
