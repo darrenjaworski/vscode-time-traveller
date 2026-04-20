@@ -62,6 +62,31 @@ describe('buildUserPrompt', () => {
 		expect(prompt).toContain('did we drop Node 18 support here?');
 	});
 
+	it('emits a "File:" scope line when no selection is present (commit-focused)', () => {
+		const prompt = buildUserPrompt(baseEv({ relPath: 'src/foo.ts' }), 'default', '', NOW);
+		expect(prompt).toContain('File: src/foo.ts');
+		expect(prompt).not.toContain('```');
+	});
+
+	it('prefers the selection excerpt over the bare File: line when both are implied', () => {
+		const prompt = buildUserPrompt(
+			baseEv({
+				relPath: 'src/foo.ts',
+				selection: {
+					relPath: 'src/foo.ts',
+					startLine: 1,
+					endLine: 1,
+					excerpt: 'const x = 1;',
+				},
+			}),
+			'default',
+			'',
+			NOW,
+		);
+		expect(prompt).toContain('lines 1–1');
+		expect(prompt).not.toMatch(/^File: src\/foo\.ts$/m);
+	});
+
 	it('emits the selection excerpt inside a fenced block', () => {
 		const prompt = buildUserPrompt(
 			baseEv({

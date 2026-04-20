@@ -26,6 +26,11 @@ export interface EvidenceSelection {
 }
 
 export interface Evidence {
+	/** Workspace-relative path of the file the question is about. Always set
+	 * when the handler resolves a file, even when no selection is present —
+	 * gives the prompt builder a fallback scope line ("File: …") for
+	 * commit-focused queries where we intentionally drop the selection. */
+	relPath?: string;
 	selection?: EvidenceSelection;
 	blameLines?: BlameLine[];
 	/** Commits that directly touch this file, newest → oldest. */
@@ -65,6 +70,7 @@ export function extractShaMention(prompt: string): string | undefined {
 }
 
 export interface EvidenceInputs {
+	relPath?: string;
 	selection?: EvidenceSelection;
 	blameLines?: BlameLine[];
 	fileRecords: RawLogRecord[];
@@ -88,6 +94,7 @@ export function composeEvidence(inputs: EvidenceInputs): Evidence {
 		}
 	}
 	return {
+		relPath: inputs.relPath,
 		selection: inputs.selection,
 		blameLines: inputs.blameLines,
 		fileCommits,

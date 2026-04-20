@@ -35,6 +35,8 @@ export function buildUserPrompt(
 
 	if (evidence.selection) {
 		sections.push(selectionSection(evidence.selection));
+	} else if (evidence.relPath) {
+		sections.push(`File: ${evidence.relPath}`);
 	}
 
 	if (evidence.referencedCommits.length > 0) {

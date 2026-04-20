@@ -87,6 +87,11 @@ describe('composeEvidence', () => {
 		expect(ev.selection?.startLine).toBe(1);
 		expect(ev.filterDescription).toBe('since v1.0.0');
 	});
+
+	it('carries relPath through so commit-focused prompts still know the file', () => {
+		const ev = composeEvidence({ fileRecords: [], relPath: 'src/foo.ts' });
+		expect(ev.relPath).toBe('src/foo.ts');
+	});
 });
 
 describe('citedShas', () => {

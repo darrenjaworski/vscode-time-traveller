@@ -119,16 +119,22 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 	const relPath = relativeTo(repoRoot, fileUri.fsPath);
 	if (!relPath || relPath.startsWith('..')) return undefined;
 
-	const selection = editor ? resolveSelection(editor, relPath) : undefined;
 	const referencedSha = extractShaMention(prompt);
+	// When the prompt names a specific commit (e.g. from the history panel's
+	// "Ask @blame about this commit" action), treat the question as commit-
+	// focused and ignore whatever lines happen to be selected in the editor.
+	// The user is asking about the commit, not the selection.
+	const commitFocused = referencedSha !== undefined;
+	const selection = !commitFocused && editor ? resolveSelection(editor, relPath) : undefined;
 	const { records, filterDescription } = await loadRecords(command, prompt, repoRoot, relPath);
 
 	let blameLines: BlameLine[] | undefined;
-	if ((command === 'why' || command === 'default') && selection) {
+	if (!commitFocused && (command === 'why' || command === 'default') && selection) {
 		blameLines = await blameRange(repoRoot, relPath, selection.startLine, selection.endLine);
 	}
 
 	return composeEvidence({
+		relPath,
 		selection,
 		blameLines,
 		fileRecords: records,
