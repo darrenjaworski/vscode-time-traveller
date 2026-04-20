@@ -74,7 +74,17 @@ export class TimeTravellerQuickDiff
 		if (!folder) {
 			return '';
 		}
-		const ref = resolveRefForUri(uri, (fileUri) => this.baseline.get(fileUri));
+		const ref = resolveRefForUri(uri, (fileUri) => {
+			// Effective ref chain: per-file override → global → configured default.
+			// The settings value acts as the workspace's "always-on" baseline for
+			// users who e.g. always want to see diffs against `origin/main`.
+			const stored = this.baseline.get(fileUri);
+			if (stored) return stored;
+			return (
+				vscode.workspace.getConfiguration('timeTraveller').get<string>('defaultBaseline') ??
+				undefined
+			);
+		});
 		const rel = relativeTo(folder.uri.fsPath, absPath);
 		return showFileAtRef(folder.uri.fsPath, ref, rel);
 	}

@@ -235,6 +235,40 @@ export async function isFileDirty(repoRoot: string, relPath: string): Promise<bo
 	}
 }
 
+export interface StashRecord {
+	/** Ref as git names it: `stash@{0}`, `stash@{1}`, … */
+	name: string;
+	subject: string;
+}
+
+/**
+ * `git stash list --format=%gd%x1F%s` — one record per line. The Git
+ * extension API doesn't expose stashes, so we always shell out.
+ */
+export async function listStashes(repoRoot: string): Promise<StashRecord[]> {
+	try {
+		const { stdout } = await execAsync(`git stash list --format=${shellQuote('%gd%x1F%s')}`, {
+			cwd: repoRoot,
+			maxBuffer: MAX_BUFFER,
+		});
+		return parseStashList(stdout);
+	} catch {
+		return [];
+	}
+}
+
+export function parseStashList(stdout: string): StashRecord[] {
+	return stdout
+		.split('\n')
+		.map((line) => line.trimEnd())
+		.filter((line) => line.length > 0)
+		.map((line) => {
+			const [name, subject] = line.split('\x1F');
+			return { name: name ?? '', subject: subject ?? '' };
+		})
+		.filter((r) => r.name.length > 0);
+}
+
 export async function getMergeBase(
 	repoRoot: string,
 	ref1: string,

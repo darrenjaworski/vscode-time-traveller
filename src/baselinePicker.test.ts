@@ -5,11 +5,13 @@ import {
 	buildPickItems,
 	buildPresetItems,
 	buildRefSection,
+	buildScopesSection,
+	buildStashSection,
 	detectMergeBaseCandidates,
 	sortRefsByName,
 } from './baselinePicker';
 import { RefType, type Ref } from './git/api';
-import type { RawLogRecord } from './git/cli';
+import type { RawLogRecord, StashRecord } from './git/cli';
 
 function ref(overrides: Partial<Ref>): Ref {
 	return { type: RefType.Head, name: 'main', commit: '1'.repeat(40), ...overrides };
@@ -142,8 +144,56 @@ describe('buildMergeBasePresets', () => {
 	});
 });
 
+describe('buildScopesSection', () => {
+	it('returns [] when neither a release tag nor merge-base candidates exist', () => {
+		expect(buildScopesSection({ mergeBaseCandidates: [] })).toEqual([]);
+	});
+
+	it('lists the latest release tag before merge-base candidates', () => {
+		const items = buildScopesSection({
+			mergeBaseCandidates: ['main'],
+			latestReleaseTagName: 'v1.2.0',
+		});
+		expect(items[0].label).toBe('Scopes');
+		expect(items[1].label).toContain('Last release (v1.2.0)');
+		expect(items[1].ref).toBe('v1.2.0');
+		expect(items[2].mergeBaseTarget).toBe('main');
+	});
+
+	it('can emit only a release-tag row when there are no merge-base candidates', () => {
+		const items = buildScopesSection({
+			mergeBaseCandidates: [],
+			latestReleaseTagName: 'v2.0.0',
+		});
+		expect(items).toHaveLength(2);
+		expect(items[1].ref).toBe('v2.0.0');
+	});
+});
+
+describe('buildStashSection', () => {
+	const stash = (overrides: Partial<StashRecord> = {}): StashRecord => ({
+		name: 'stash@{0}',
+		subject: 'WIP on main: abc',
+		...overrides,
+	});
+
+	it('returns [] for no stashes', () => {
+		expect(buildStashSection([])).toEqual([]);
+	});
+
+	it('emits a Stashes separator + one row per stash, preserving order', () => {
+		const items = buildStashSection([
+			stash({ name: 'stash@{0}', subject: 'WIP A' }),
+			stash({ name: 'stash@{1}', subject: 'WIP B' }),
+		]);
+		expect(items[0].label).toBe('Stashes');
+		expect(items.slice(1).map((i) => i.ref)).toEqual(['stash@{0}', 'stash@{1}']);
+		expect(items[1].label).toContain('$(archive)');
+	});
+});
+
 describe('buildPickItems', () => {
-	it('composes presets + merge-bases + branches + tags + remotes + commits', () => {
+	it('composes presets + scopes + branches + tags + remotes + stashes + commits', () => {
 		const items = buildPickItems({
 			currentRef: 'v1.0.0',
 			refs: [
@@ -153,6 +203,8 @@ describe('buildPickItems', () => {
 			],
 			recentCommits: [commit()],
 			mergeBaseCandidates: ['main'],
+			latestReleaseTagName: 'v1.0.0',
+			stashes: [{ name: 'stash@{0}', subject: 'WIP' }],
 		});
 		const separators = items.filter((i) => i.kind === -1).map((i) => i.label);
 		expect(separators).toEqual([
@@ -161,6 +213,7 @@ describe('buildPickItems', () => {
 			'Branches',
 			'Tags',
 			'Remote branches',
+			'Stashes',
 			'Recent commits',
 		]);
 	});

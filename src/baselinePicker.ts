@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 import { findRepository, RefType, type Ref, type Repository } from './git/api';
-import { getMergeBase, logRecent, type RawLogRecord } from './git/cli';
+import {
+	getMergeBase,
+	listStashes,
+	logRecent,
+	type RawLogRecord,
+	type StashRecord,
+} from './git/cli';
+import { latestReleaseTag } from './semver';
 
 export interface RefPick extends vscode.QuickPickItem {
 	ref?: string;
@@ -67,17 +74,33 @@ export function detectMergeBaseCandidates(
 	return out;
 }
 
-export function buildMergeBasePresets(candidates: string[]): RefPick[] {
-	if (candidates.length === 0) return [];
-	return [
-		{ label: 'Scopes', kind: vscode.QuickPickItemKind.Separator },
-		...candidates.map<RefPick>((target) => ({
+export function buildScopesSection(inputs: {
+	mergeBaseCandidates: string[];
+	latestReleaseTagName?: string;
+}): RefPick[] {
+	const rows: RefPick[] = [];
+	if (inputs.latestReleaseTagName) {
+		rows.push({
+			label: `$(tag) Last release (${inputs.latestReleaseTagName})`,
+			description: 'most recent stable semver tag',
+			ref: inputs.latestReleaseTagName,
+		});
+	}
+	for (const target of inputs.mergeBaseCandidates) {
+		rows.push({
 			label: `$(git-merge) Merge base with ${target}`,
 			description: 'fork point for PR-style diff',
 			action: 'merge-base',
 			mergeBaseTarget: target,
-		})),
-	];
+		});
+	}
+	if (rows.length === 0) return [];
+	return [{ label: 'Scopes', kind: vscode.QuickPickItemKind.Separator }, ...rows];
+}
+
+/** Back-compat alias kept so external callers don't break; prefer buildScopesSection. */
+export function buildMergeBasePresets(candidates: string[]): RefPick[] {
+	return buildScopesSection({ mergeBaseCandidates: candidates });
 }
 
 const REF_SECTION_CONFIG: Record<
@@ -118,18 +141,36 @@ export function buildCommitSection(records: RawLogRecord[]): RefPick[] {
 	return items;
 }
 
+export function buildStashSection(stashes: StashRecord[]): RefPick[] {
+	if (stashes.length === 0) return [];
+	return [
+		{ label: 'Stashes', kind: vscode.QuickPickItemKind.Separator },
+		...stashes.map<RefPick>((s) => ({
+			label: `$(archive) ${s.name}`,
+			description: s.subject,
+			ref: s.name,
+		})),
+	];
+}
+
 export function buildPickItems(input: {
 	currentRef: string | undefined;
 	refs: Ref[];
 	recentCommits: RawLogRecord[];
 	mergeBaseCandidates: string[];
+	latestReleaseTagName?: string;
+	stashes?: StashRecord[];
 }): RefPick[] {
 	return [
 		...buildPresetItems(input.currentRef),
-		...buildMergeBasePresets(input.mergeBaseCandidates),
+		...buildScopesSection({
+			mergeBaseCandidates: input.mergeBaseCandidates,
+			latestReleaseTagName: input.latestReleaseTagName,
+		}),
 		...buildRefSection('branch', input.refs),
 		...buildRefSection('tag', input.refs),
 		...buildRefSection('remote', input.refs),
+		...buildStashSection(input.stashes ?? []),
 		...buildCommitSection(input.recentCommits),
 	];
 }
@@ -138,15 +179,23 @@ export async function pickBaselineRef(currentRef: string | undefined): Promise<B
 	const activeUri = vscode.window.activeTextEditor?.document.uri;
 	const repo = await (activeUri ? findRepository(activeUri) : firstRepoFromWorkspace());
 
-	const recentCommits = repo ? await logRecent(repo.rootUri.fsPath, 30) : [];
+	const [recentCommits, stashes] = repo
+		? await Promise.all([logRecent(repo.rootUri.fsPath, 30), listStashes(repo.rootUri.fsPath)])
+		: [[], []];
 	const mergeBaseCandidates = repo
 		? detectMergeBaseCandidates(repo.state.refs, repo.state.HEAD?.name)
 		: [];
+	const tagNames = (repo?.state.refs ?? [])
+		.filter((r) => r.type === RefType.Tag && !!r.name)
+		.map((r) => r.name!);
+	const latestReleaseTagName = latestReleaseTag(tagNames);
 	const items = buildPickItems({
 		currentRef,
 		refs: repo?.state.refs ?? [],
 		recentCommits,
 		mergeBaseCandidates,
+		latestReleaseTagName,
+		stashes,
 	});
 
 	const placeholder = repo

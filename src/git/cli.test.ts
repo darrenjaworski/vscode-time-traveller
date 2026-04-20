@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { LOG_FORMAT, parseBlamePorcelain, parseLog, parsePathsByCommit, shellQuote } from './cli';
+import {
+	LOG_FORMAT,
+	parseBlamePorcelain,
+	parseLog,
+	parsePathsByCommit,
+	parseStashList,
+	shellQuote,
+} from './cli';
 
 function record(fields: {
 	sha?: string;
@@ -187,5 +194,30 @@ describe('parseBlamePorcelain', () => {
 	it('strips angle brackets from author-mail', () => {
 		const stdout = block('a'.repeat(40), 1, 'x');
 		expect(parseBlamePorcelain(stdout)[0].authorEmail).toBe('alice@example.com');
+	});
+});
+
+describe('parseStashList', () => {
+	it('returns an empty array for empty input', () => {
+		expect(parseStashList('')).toEqual([]);
+	});
+
+	it('parses one record per non-empty line', () => {
+		const stdout = ['stash@{0}\x1FWIP on main: abc', 'stash@{1}\x1Ffix-attempt'].join('\n');
+		const records = parseStashList(stdout);
+		expect(records).toEqual([
+			{ name: 'stash@{0}', subject: 'WIP on main: abc' },
+			{ name: 'stash@{1}', subject: 'fix-attempt' },
+		]);
+	});
+
+	it('tolerates trailing newlines and blank lines', () => {
+		const stdout = 'stash@{0}\x1FWIP\n\n\n';
+		expect(parseStashList(stdout)).toEqual([{ name: 'stash@{0}', subject: 'WIP' }]);
+	});
+
+	it('skips lines with no name field', () => {
+		const stdout = '\x1FWIP\nstash@{0}\x1Freal entry';
+		expect(parseStashList(stdout)).toEqual([{ name: 'stash@{0}', subject: 'real entry' }]);
 	});
 });
