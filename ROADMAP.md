@@ -52,6 +52,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 - [x] Follows renames (`git log --follow`) and surfaces a "renamed from …" affordance on the first post-rename entry
 - [ ] Pagination: default page size 50, hard cap initial load at 200, virtual "Load more" node at the end — currently hard-capped at 200 with no paging UI
 - [ ] Grouping toggle: None (default) · By date bucket (Today / This week / Older) · By author
+- [ ] Story of a commit, instead of one file history, pick a commit and generate a story
 
 ### Interactions
 
