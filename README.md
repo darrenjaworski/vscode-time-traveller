@@ -4,6 +4,8 @@ Ask **`@historian`** _why_ a line is the way it is — grounded in real commit h
 
 git-blame meets narrative history, in one extension.
 
+![Gutter diff against a non-HEAD baseline with the File History panel on the left](images/screenshots/gutter-diff.png)
+
 ---
 
 ## `@historian` — ask why
@@ -56,6 +58,8 @@ The gutter's modify/add/delete decorations normally show changes since `HEAD`. S
 
 Two scopes: a workspace-wide baseline, and **per-file overrides** that shadow it. The status-bar item reflects the effective baseline and annotates `(file)` when an override is active.
 
+![Sectioned baseline picker: presets, recent commits, branches](images/screenshots/baseline-picker.png)
+
 ### File history panel
 
 A sidebar tree under the built-in **Source Control** view, backed by `git log --follow`. For the active file:
@@ -76,6 +80,8 @@ A sidebar tree under the built-in **Source Control** view, backed by `git log --
 Active filters show up in the view's description line; **Clear filters** only appears when something is active. State persists per-workspace — your filter survives window reloads.
 
 An in-memory LRU cache keyed by `(repo, file, page)` makes repeat views instant; branch switches, HEAD moves, fetches, and merges invalidate the cache automatically via the built-in Git extension's state events.
+
+![File History panel showing commits with author and relative date](images/screenshots/file-history.png)
 
 ### Inline UX
 
