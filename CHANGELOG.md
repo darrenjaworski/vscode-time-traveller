@@ -4,6 +4,24 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-21
+
+First stable release on the VS Code Marketplace. Everything you need to ask `@historian` why a line changed, set any commit as your gutter baseline, and browse a file's history without leaving the editor — packaged with a first-run walkthrough and tunable model/PR settings.
+
+### Added
+
+- **First-run walkthrough.** A four-step "Get started with Git Time Traveller" opens automatically on install: ask `@historian`, pick a diff baseline, browse file history, and (optionally) sign in to GitHub for PR context. Each step has a markdown reference card you can reopen anytime from the Welcome page.
+- **Language-model settings.** Choose which model `@historian` asks:
+  - `timeTraveller.chat.modelVendor` (default `copilot`) — set to empty to accept any vendor.
+  - `timeTraveller.chat.modelFamily` (default `gpt-4o`) — e.g. `claude-3.5-sonnet`. Empty = any.
+  - `timeTraveller.chat.maxBlameEvidenceTokens` (default `4000`) — soft cap on patch/diff evidence per query. Lower it if you hit model context limits.
+- **PR context toggle.** `timeTraveller.pr.enabled` (default `true`) — flip off to skip GitHub PR lookups for offline or privacy-sensitive work.
+- **Animated demo in the README** showing an end-to-end `@historian` query.
+
+### Changed
+
+- README leads with the demo gif, documents the new settings, and points at the VS Code Marketplace listing.
+
 ## [0.3.0] - 2026-04-20
 
 Phase 1.5 (file history panel) and Phase 3 (`@historian`) are now complete. The history panel grows up — pagination, filters, grouping, persisted state — and `@historian` answers are substantially better-grounded thanks to parent-diff snippets, per-commit file stats, and GitHub PR context.

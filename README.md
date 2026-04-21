@@ -1,10 +1,13 @@
 # Git Time Traveller
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/DarrenJaworski.vscode-time-traveller?label=Marketplace&color=007acc)](https://marketplace.visualstudio.com/items?itemName=DarrenJaworski.vscode-time-traveller)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/DarrenJaworski.vscode-time-traveller)](https://marketplace.visualstudio.com/items?itemName=DarrenJaworski.vscode-time-traveller)
+
 Ask **`@historian`** _why_ a line is the way it is — grounded in real commit history, not guesswork. Set any commit as your diff baseline and watch the gutter update live. Explore the story of a file — or any single commit — without leaving VS Code.
 
 git-blame meets narrative history, in one extension.
 
-![Gutter diff against a non-HEAD baseline with the File History panel on the left](images/screenshots/gutter-diff.png)
+![Asking @historian why a line is the way it is, with cited commits streamed back as clickable chips](images/screenshots/historian.gif)
 
 ---
 
@@ -58,6 +61,8 @@ The gutter's modify/add/delete decorations normally show changes since `HEAD`. S
 
 Two scopes: a workspace-wide baseline, and **per-file overrides** that shadow it. The status-bar item reflects the effective baseline and annotates `(file)` when an override is active.
 
+![Gutter diff against a non-HEAD baseline with the File History panel on the left](images/screenshots/gutter-diff.png)
+
 ![Sectioned baseline picker: presets, recent commits, branches](images/screenshots/baseline-picker.png)
 
 ### File history panel
@@ -97,7 +102,7 @@ An in-memory LRU cache keyed by `(repo, file, page)` makes repeat views instant;
 
 ## Getting started
 
-1. **Install** — from the Marketplace, or `code --install-extension vscode-time-traveller-*.vsix`.
+1. **Install** — from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=DarrenJaworski.vscode-time-traveller), or `code --install-extension vscode-time-traveller-*.vsix`. A **"Get started with Git Time Traveller"** walkthrough opens automatically on first install and walks you through the four steps below.
 2. **Ask `@historian`** — open the chat panel and type `@historian /story` on any tracked file for an instant narrative.
 3. **Pick a baseline** — `Time Traveller: Pick Diff Baseline…` from the Command Palette. The gutter updates immediately.
 4. **Browse history** — click the Source Control icon in the Activity Bar; the **File History** panel appears below the git views.
@@ -131,11 +136,15 @@ History-panel per-row actions aren't listed in the palette — they're only mean
 
 ## Configuration
 
-| Setting                          | Default | Description                                                                                                                     |
-| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `timeTraveller.defaultBaseline`  | `HEAD`  | Default git ref to diff against when no baseline is picked. Pin it to `origin/main` for a steady workspace-wide PR-review view. |
-| `timeTraveller.codeLens.enabled` | `true`  | Show the "Ask @historian" CodeLens above each changed hunk.                                                                     |
-| `timeTraveller.hover.enabled`    | `true`  | Show the last-touching-commit hover on changed lines.                                                                           |
+| Setting                                     | Default   | Description                                                                                                                     |
+| ------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `timeTraveller.defaultBaseline`             | `HEAD`    | Default git ref to diff against when no baseline is picked. Pin it to `origin/main` for a steady workspace-wide PR-review view. |
+| `timeTraveller.codeLens.enabled`            | `true`    | Show the "Ask @historian" CodeLens above each changed hunk.                                                                     |
+| `timeTraveller.hover.enabled`               | `true`    | Show the last-touching-commit hover on changed lines.                                                                           |
+| `timeTraveller.chat.modelVendor`            | `copilot` | Preferred language-model vendor for `@historian`. Leave empty to accept any vendor.                                             |
+| `timeTraveller.chat.modelFamily`            | `gpt-4o`  | Preferred model family, passed to `vscode.lm.selectChatModels`. Examples: `gpt-4o`, `claude-3.5-sonnet`. Empty = any.           |
+| `timeTraveller.chat.maxBlameEvidenceTokens` | `4000`    | Soft cap on characters of patch/diff evidence per query. Lower it when hitting model context limits.                            |
+| `timeTraveller.pr.enabled`                  | `true`    | Fetch GitHub PR context for cited commits. Disable to keep queries fully local.                                                 |
 
 ---
 

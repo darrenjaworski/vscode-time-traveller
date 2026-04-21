@@ -145,15 +145,15 @@ Goal: ask `@historian` about a line, range, or file and get a _why_, not just a 
 
 ## Phase 5 — Polish & distribution
 
-- [ ] Settings:
-  - default baseline strategy (`HEAD`, `merge-base(main)`, `last-tag`, `custom`)
-  - LLM model preference (via `vscode.lm.selectChatModels`)
-  - max context tokens for blame evidence
-  - PR provider auth (GitHub token via VS Code auth provider)
-- [ ] Telemetry opt-in (counts only, no content)
-- [ ] Walkthrough (`contributes.walkthroughs`) for first-run onboarding
-- [ ] Marketplace listing: icon, screenshots, animated gif
-- [ ] Publish to Open VSX as well as the VS Code Marketplace
+- [~] Settings:
+  - [x] default baseline — `timeTraveller.defaultBaseline` (string; `HEAD`, `origin/main`, tag, etc.)
+  - [x] LLM model preference — `timeTraveller.chat.modelVendor` + `timeTraveller.chat.modelFamily`, fed into `vscode.lm.selectChatModels`
+  - [x] max context tokens for blame evidence — `timeTraveller.chat.maxBlameEvidenceTokens`
+  - [x] PR provider auth — GitHub via `vscode.authentication.getSession('github', ['repo'], { silent })`; kill switch `timeTraveller.pr.enabled`
+- [ ] Telemetry opt-in (counts only, no content) — deferred; no collector wired
+- [x] Walkthrough (`contributes.walkthroughs`) for first-run onboarding — four-step walkthrough with per-step markdown reference cards
+- [x] Marketplace listing: icon, screenshots, animated gif — all present under `images/`; gif at `images/screenshots/historian.gif`. Listing live at `marketplace.visualstudio.com/items?itemName=DarrenJaworski.vscode-time-traveller`
+- [ ] Publish to Open VSX as well as the VS Code Marketplace — deferred for 1.0
 
 ## Phase 6 — Stretch ideas
 
