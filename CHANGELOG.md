@@ -4,6 +4,45 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-20
+
+Phase 1.5 (file history panel) and Phase 3 (`@historian`) are now complete. The history panel grows up — pagination, filters, grouping, persisted state — and `@historian` answers are substantially better-grounded thanks to parent-diff snippets, per-commit file stats, and GitHub PR context.
+
+### Added
+
+**File history panel**
+
+- **Pagination.** Initial page of 50 commits with a virtual "Load more…" row that grows the limit in-place.
+- **LRU cache** keyed by `(repoRoot, relPath, limit)`, invalidated per-repo on `Repository.state.onDidChange` so branch switches, HEAD moves, fetches, and merges bust stale entries automatically.
+- **Text filter** against subject + body (case-insensitive); **hide-merge-commits toggle**; **grouping** by None / By date (Today / Yesterday / This week / This month / This year / Older) / By author. Group nodes expand by default with a count badge.
+- **Active filter state** shown in the tree view's description line; a `timeTraveller.history.hasFilters` context key gates the "Clear filters" title action. All state persists per-workspace under `timeTraveller.history.state`.
+- **"Tell the story of this commit"** context-menu action on any history row. Prefills `@historian /story <sha>` and triggers the new commit-focused narrative mode.
+
+**`@historian`**
+
+- **Parent-diff snippets.** Cited commits now carry a trimmed `git show --patch` excerpt into the prompt as a `diff` code block. Commit-focused queries pull the full commit (4k chars / 200 lines); `/why` and default mode pull per-file patches for the top 3 blame-cited commits (2k / 80 each). Pure `trimPatch` / `stripDiffBanners` in `src/historian/diff.ts` drop noisy `diff --git` / `index` banners and cap on char + line budgets.
+- **Per-commit file stats** via `git show --numstat`. Commit-focused queries get a "Files changed in `<shortSha>`" section (capped at 20 files, binaries called out).
+- **GitHub PR context.** For repos with a GitHub remote, `@historian` looks up PRs associated with cited commits and surfaces title + body in a "Pull requests" section. Uses `vscode.authentication.getSession('github', ['repo'], { silent, createIfNone: false })` so it never prompts the user; unauthenticated calls still work against public repos (rate-limited). Session-scoped `PRCache` with a null sentinel for known-absent commits. Capped at 5 commits per query. When GitHub returns multiple PRs for a commit (cherry-picks), prefers the merged one.
+- **Commit-focused `/story` mode.** `/story` + a referenced SHA swaps in a commit-focused task ("what motivated it, what it changed, how it fits in") instead of a file-wide timeline, and uses the surrounding file log as context rather than the primary subject.
+
+**Engineering**
+
+- `CONTRIBUTING.md` with a dev-loop summary and a manual test checklist covering every contribution point.
+- New modules: `src/history/filters.ts`, `src/historian/diff.ts`, `src/pr/github.ts`, `src/pr/cache.ts`, `src/pr/service.ts` — all pure where possible; network and `vscode` touch points isolated and injectable for tests.
+- Test count: 272 tests across 23 files (from 196 across 18 in 0.2.2).
+
+### Changed
+
+- `HistoryContext` now carries `{ entries, hasMore, limit }` instead of just `entries`; pagination state lives in the provider, backed by the cache.
+- `Evidence` grew `commitFiles`, `commitDiffs`, and `commitPRs` maps, all keyed by full SHA.
+- `HistoryProvider.refresh` preserves `currentLimit` across explicit refreshes of the same file so "Load more" state survives reloads; switching files resets to the first page.
+
+### Deferred
+
+- Author multi-select and date-range filters (grouping-by-author covers most of the "who" use cases for now).
+- GitLab and Bitbucket PR providers; Enterprise GitHub; PR review comments.
+- Exit-criteria measurement: the 300 ms load budget for ≤10k-commit files needs a real Extension Host run.
+
 ## [0.2.2] - 2026-04-19
 
 ### Fixed
