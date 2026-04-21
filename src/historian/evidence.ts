@@ -47,6 +47,10 @@ export interface Evidence {
 	 * Populated for commit-focused queries — lets the prompt ground a "story
 	 * of a commit" in what the commit actually touched. */
 	commitFiles?: Map<string, CommitFileChange[]>;
+	/** Trimmed patch text per commit (from `git show --patch`), keyed by full
+	 * SHA. Scoped to `relPath` when the query has a file context. Already
+	 * capped for prompt size — see `trimPatch`. */
+	commitDiffs?: Map<string, string>;
 }
 
 export function recordToSummary(record: RawLogRecord): CommitSummary {
@@ -81,6 +85,7 @@ export interface EvidenceInputs {
 	referencedShas?: string[];
 	filterDescription?: string;
 	commitFiles?: Map<string, CommitFileChange[]>;
+	commitDiffs?: Map<string, string>;
 }
 
 export function composeEvidence(inputs: EvidenceInputs): Evidence {
@@ -106,6 +111,7 @@ export function composeEvidence(inputs: EvidenceInputs): Evidence {
 		referencedCommits,
 		filterDescription: inputs.filterDescription,
 		commitFiles: inputs.commitFiles,
+		commitDiffs: inputs.commitDiffs,
 	};
 }
 

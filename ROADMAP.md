@@ -125,7 +125,7 @@ Goal: ask `@historian` about a line, range, or file and get a _why_, not just a 
 
 - [x] Handler reads the active selection / cursor position from the chat context
 - [x] Gather evidence: `git blame -w` on the selected range, `git log --follow` on the file (default + `/since <ref>` + `/author <pattern>` variants), commit bodies
-- [ ] Parent-diff snippets — deferred; current evidence relies on commit bodies only
+- [x] Parent-diff snippets — `showCommitPatch` shells `git show --patch`; pure `trimPatch`/`stripDiffBanners` in `src/historian/diff.ts` cap output; `commitDiffsSection` emits a `Diff excerpt for <sha>` block per cited commit. Commit-focused queries get the full commit diff (~4k chars); `/why` pulls scoped per-file patches for the top 3 blame SHAs (~2k chars each)
 - [ ] Fetch PR context when a remote is GitHub/GitLab (commit → PR → body + review comments) — deferred, needs `vscode.authentication` + API client
 - [x] Prompt template that includes selection excerpt + blame-by-SHA rollup + referenced commits + file log
 - [x] Stream response with `vscode.ChatResponseStream`; emit `stream.reference(uri)` for each cited commit (via `makeTimeTravellerUri`)

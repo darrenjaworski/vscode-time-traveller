@@ -7,17 +7,22 @@ import {
 	logFileByAuthor,
 	logFileSince,
 	relativeTo,
+	showCommitPatch,
 	showCommitStat,
 	type BlameLine,
 	type CommitFileChange,
 	type RawLogRecord,
 } from './git/cli';
+import { trimPatch } from './historian/diff';
 import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
 import { suggestFollowups } from './historian/followups';
 import { buildUserPrompt, systemPrompt, type HistorianCommand } from './historian/prompt';
 import { makeTimeTravellerUri } from './quickDiff';
 
 const FILE_LOG_CAP = 60;
+/** How many blame-cited commits to pull patches for in `/why` / default mode.
+ * Keep this tight — each patch costs real tokens. */
+const BLAME_PATCH_CAP = 3;
 
 /**
  * Registers the `@historian` chat participant. The participant ID **must**
@@ -136,6 +141,7 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 	}
 
 	let commitFiles: Map<string, CommitFileChange[]> | undefined;
+	const commitDiffs = new Map<string, string>();
 	if (commitFocused && referencedSha) {
 		// Resolve the prompt's short SHA to the full SHA via the file log, so
 		// `git show` gets a stable ref and `commitFiles` keys match the keys
@@ -147,9 +153,34 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 				r.shortSha.toLowerCase() === referencedSha.toLowerCase(),
 		);
 		const fullSha = match?.sha ?? referencedSha;
-		const files = await showCommitStat(repoRoot, fullSha);
+		const [files, patch] = await Promise.all([
+			showCommitStat(repoRoot, fullSha),
+			// Unscoped: commit-focused narratives care about the full commit, not
+			// just how it touched the file that happened to be open.
+			showCommitPatch(repoRoot, fullSha),
+		]);
 		if (files.length > 0) {
 			commitFiles = new Map([[fullSha, files]]);
+		}
+		const trimmed = trimPatch(patch, { maxChars: 4000, maxLines: 200 });
+		if (trimmed.text.length > 0) {
+			commitDiffs.set(fullSha, trimmed.text);
+		}
+	} else if (blameLines && blameLines.length > 0) {
+		// For `/why` on a selection, pull a small per-file patch for the top
+		// blame-cited commits so the model can see the actual change, not just
+		// commit subjects. Scoped to `relPath` to keep the prompt tight.
+		const uniq: string[] = [];
+		for (const l of blameLines) {
+			if (!uniq.includes(l.sha)) uniq.push(l.sha);
+			if (uniq.length >= BLAME_PATCH_CAP) break;
+		}
+		const patches = await Promise.all(
+			uniq.map(async (sha) => [sha, await showCommitPatch(repoRoot, sha, relPath)] as const),
+		);
+		for (const [sha, patch] of patches) {
+			const trimmed = trimPatch(patch, { maxChars: 2000, maxLines: 80 });
+			if (trimmed.text.length > 0) commitDiffs.set(sha, trimmed.text);
 		}
 	}
 
@@ -161,6 +192,7 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		referencedShas: referencedSha ? [referencedSha] : undefined,
 		filterDescription,
 		commitFiles,
+		commitDiffs: commitDiffs.size > 0 ? commitDiffs : undefined,
 	});
 }
 

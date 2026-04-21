@@ -303,6 +303,42 @@ describe('buildUserPrompt (commit-story mode)', () => {
 	});
 });
 
+describe('buildUserPrompt (commit diffs)', () => {
+	it('renders a Diff excerpt block for each referenced commit', () => {
+		const sha = 'a'.repeat(40);
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec(sha, 'Refactor')],
+			referencedShas: [sha],
+			commitDiffs: new Map([[sha, '--- a/f\n+++ b/f\n@@ -1 +1 @@\n-old\n+new']]),
+		});
+		const out = buildUserPrompt(evidence, 'story', '', NOW);
+		expect(out).toContain('Diff excerpt for `aaaaaaa`');
+		expect(out).toContain('```diff');
+		expect(out).toContain('+new');
+	});
+
+	it('emits diff blocks for blame-cited commits even without referenced commits', () => {
+		// `/why` mode: no referencedShas, but we still pulled patches for top
+		// blame SHAs. Should still surface in the prompt.
+		const sha = 'b'.repeat(40);
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec(sha, 'Touch')],
+			commitDiffs: new Map([[sha, '--- a/f\n+++ b/f\n@@ -1 +1 @@\n+change']]),
+		});
+		const out = buildUserPrompt(evidence, 'why', '', NOW);
+		expect(out).toContain('Diff excerpt for `bbbbbbb`');
+		expect(out).toContain('+change');
+	});
+
+	it('skips the diffs section entirely when commitDiffs is empty', () => {
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec('a'.repeat(40), 's')],
+		});
+		const out = buildUserPrompt(evidence, 'why', '', NOW);
+		expect(out).not.toContain('Diff excerpt');
+	});
+});
+
 describe('compressRanges', () => {
 	it('returns an empty string for no numbers', () => {
 		expect(compressRanges([])).toBe('');

@@ -48,6 +48,10 @@ export function buildUserPrompt(
 		sections.push(commitFilesSection(evidence));
 	}
 
+	if (evidence.commitDiffs && evidence.commitDiffs.size > 0) {
+		sections.push(commitDiffsSection(evidence));
+	}
+
 	if (evidence.blameLines && evidence.blameLines.length > 0) {
 		sections.push(blameSection(evidence, now));
 	}
@@ -150,6 +154,38 @@ function fileLogSection(
 }
 
 const COMMIT_FILES_CAP = 20;
+
+function commitDiffsSection(evidence: Evidence): string {
+	const diffs = evidence.commitDiffs;
+	if (!diffs) return '';
+	// Look up a short SHA the model can cite. Referenced commits and file
+	// commits both carry subject/short context; anything else falls back to
+	// the first seven chars of the full SHA.
+	const shortFor = (sha: string): string => {
+		const ref = evidence.referencedCommits.find((c) => c.sha === sha);
+		if (ref) return ref.shortSha;
+		const inLog = evidence.fileCommits.find((c) => c.sha === sha);
+		return inLog?.shortSha ?? sha.slice(0, 7);
+	};
+	// Emit in a stable order: referenced commits first, then anything else
+	// (e.g. blame-cited SHAs in `/why` mode) in insertion order.
+	const seen = new Set<string>();
+	const order: string[] = [];
+	for (const c of evidence.referencedCommits) {
+		if (diffs.has(c.sha)) {
+			order.push(c.sha);
+			seen.add(c.sha);
+		}
+	}
+	for (const sha of diffs.keys()) {
+		if (!seen.has(sha)) order.push(sha);
+	}
+	const blocks = order.map((sha) => {
+		const patch = diffs.get(sha)!;
+		return [`Diff excerpt for \`${shortFor(sha)}\`:`, '```diff', patch.trimEnd(), '```'].join('\n');
+	});
+	return blocks.join('\n\n');
+}
 
 function commitFilesSection(evidence: Evidence): string {
 	const blocks: string[] = [];

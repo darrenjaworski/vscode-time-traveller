@@ -329,6 +329,26 @@ export function parseNumstat(stdout: string): CommitFileChange[] {
 	return out;
 }
 
+/**
+ * `git show --patch <sha>` — the full diff for a commit, optionally scoped to a
+ * single path. Pinned to `-M` so renames show up as renames rather than big
+ * delete+add pairs. Returns empty string on failure (unknown ref, etc.).
+ */
+export async function showCommitPatch(
+	repoRoot: string,
+	sha: string,
+	relPath?: string,
+): Promise<string> {
+	const pathArg = relPath ? ` -- ${shellQuote(relPath.replace(/\\/g, '/'))}` : '';
+	const cmd = `git show --patch -M --format= ${shellQuote(sha)}${pathArg}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return stdout;
+	} catch {
+		return '';
+	}
+}
+
 export async function getMergeBase(
 	repoRoot: string,
 	ref1: string,
