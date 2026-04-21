@@ -18,14 +18,14 @@ A VS Code extension that marries git history with LLM-powered narrative. Pick _a
 - [x] `QuickDiffProvider` registered against a custom `git-time-traveller:` URI scheme
 - [x] `@historian` chat participant registered with a placeholder handler
 - [x] CI (lint + `vsce package` smoke build)
-- [ ] Manual test checklist in `CONTRIBUTING.md`
+- [x] Manual test checklist in `CONTRIBUTING.md`
 
 ## Phase 1 — Baseline picker (MVP quick diff)
 
 Goal: user can pick a ref once, and the gutter reflects diffs against that ref until cleared.
 
 - [x] Integrate with the built-in `vscode.git` extension API to enumerate refs (branches, tags, commits)
-- [ ] Stash enumeration — Git extension API doesn't expose it; needs a `git stash list` CLI fallback
+- [x] Stash enumeration — Git extension API doesn't expose it; shelled out via `listStashes` in `src/git/cli.ts` and surfaced in the picker's "Stashes" section
 - [x] QuickPick UI: recent commits, branches, tags, "Enter SHA…"
 - [x] `TextDocumentContentProvider` that resolves `git-time-traveller:<path>` → file contents at the effective ref
 - [x] `QuickDiffProvider.provideOriginalResource` returns the custom URI for the active baseline
@@ -50,8 +50,8 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 - [x] Row label: commit subject. Row description: `<author> · <relative date>`. Row tooltip: short SHA + full body + absolute ISO date.
 - [x] Icons per entry kind: normal commit, merge commit, currently-selected baseline, working-tree (synthetic top row when dirty)
 - [x] Follows renames (`git log --follow`) and surfaces a "renamed from …" affordance on the first post-rename entry
-- [ ] Pagination: default page size 50, hard cap initial load at 200, virtual "Load more" node at the end — currently hard-capped at 200 with no paging UI
-- [ ] Grouping toggle: None (default) · By date bucket (Today / This week / Older) · By author
+- [x] Pagination: default page size 50 with a virtual "Load more…" node; clicking it grows the limit and re-renders. Backed by `HistoryCache` so pagination state survives repeated refreshes on the same file
+- [x] Grouping toggle: None (default) · By date bucket (Today / Yesterday / This week / This month / This year / Older) · By author — `src/history/filters.ts` + `timeTraveller.history.setGrouping` command
 - [ ] Story of a commit, instead of one file history, pick a commit and generate a story
 
 ### Interactions
@@ -66,26 +66,26 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
   - [x] Copy commit SHA
   - [x] Copy subject
   - [x] Open on GitHub/GitLab/Bitbucket (when a known remote is present)
-- [x] Top-of-view actions: refresh. Filter/grouping toggles still pending (see Filters & search below).
+- [x] Top-of-view actions: filter, group, clear filters (shown only when filters are active via `timeTraveller.history.hasFilters` context key), ask @historian about file, refresh. Active filter state is shown in the view's description line
 
 ### Filters & search
 
-- [ ] Text filter on subject + body
-- [ ] Filter by author (multi-select from contributors to this file)
-- [ ] Filter by date range
-- [ ] Toggle "Hide merge commits"
-- [ ] Persist last filter state per workspace
+- [x] Text filter on subject + body — `timeTraveller.history.setTextFilter`, case-insensitive substring match
+- [ ] Filter by author (multi-select from contributors to this file) — deferred; grouping by author covers most of the "who" use cases for now
+- [ ] Filter by date range — deferred
+- [x] Toggle "Hide merge commits" — `timeTraveller.history.toggleHideMerges`
+- [x] Persist last filter state per workspace — stored under `timeTraveller.history.state` in `workspaceState`
 
 ### Data layer
 
 - [x] `src/history/service.ts` — single entry point (`getFileHistory(uri)`) with injectable deps for tests
 - [x] Shells `git log --follow --pretty=<custom>` through `src/git/cli.ts`; pairs with `logFileRenames` to annotate rename transitions
 - [x] `HistoryEntry`: `{ sha, shortSha, subject, body, authorName, authorEmail, authorDate, isMerge, parents, renamedFrom? }`
-- [ ] LRU cache keyed by `(repoRoot, relPath, pageCursor, filters)`; invalidates on branch switch / HEAD move / fetch via git extension events
+- [x] LRU cache keyed by `(repoRoot, relPath, limit)` (`HistoryCache` in `src/history/service.ts`). Invalidates per-repo when `Repository.state.onDidChange` fires (branch switch / HEAD move / fetch / merge), plus a `clear()` path for the explicit Refresh action. Filter dimension will be added when filters land
 
 ### View layer
 
-- [x] `src/history/provider.ts` — `TreeDataProvider<HistoryNode>` with node kinds `entry`, `placeholder`, `workingTree` (group / loadMore nodes still pending)
+- [x] `src/history/provider.ts` — `TreeDataProvider<HistoryNode>` with node kinds `entry`, `placeholder`, `workingTree`, `loadMore` (group nodes still pending)
 - [x] `src/history/view.ts` — wires `vscode.window.createTreeView`, active-editor listener, and commands; re-renders on baseline change so the marker moves
 - [x] `package.json` contributions: activity bar view container, `fileHistory` view, commands `timeTraveller.history.{refresh, setBaseline, setAsGlobalBaseline, openDiff, openDiffPrev, openAtRevision, copySha, copySubject, openOnRemote, askBlame, clearFileBaseline}`, and `view/title` + `view/item/context` + `view/item/inline` menu entries
 
@@ -115,7 +115,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 
 - [x] Per-file baseline overrides (e.g. compare `src/foo.ts` against `main`, but `src/bar.ts` against a stash) — `BaselineStore.setForFile` + tagged `BaselineChange` event; live-baseline TT URIs carry no query so per-file changes re-read fresh content
 - [x] "Compare working tree to merge-base with `<branch>`" preset — auto-detects `main`/`master`/`develop`/`trunk` (local, falling back to `origin/`) and computes `git merge-base HEAD <target>` on pick
-- [ ] "Compare to last release tag" preset — deferred, needs semver-aware tag sort
+- [x] "Compare to last release tag" preset — `latestReleaseTag` in `src/semver.ts`, surfaced in the picker's Scopes section
 - [x] "Stepping" commands: move baseline ±1 commit along `git log -- <file>` — `timeTraveller.stepBaselineBackward` / `.stepBaselineForward`, writes to the per-file slot
 - [x] Diff editor shortcut: open `git-time-traveller:` URI side-by-side — `timeTraveller.openDiffWithBaseline`
 

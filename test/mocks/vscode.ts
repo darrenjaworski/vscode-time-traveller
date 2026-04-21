@@ -62,7 +62,10 @@ export class TreeItem {
 	iconPath?: unknown;
 	contextValue?: string;
 	command?: unknown;
-	constructor(public label: string | { label: string }) {}
+	constructor(
+		public label: string | { label: string },
+		public collapsibleState?: number,
+	) {}
 }
 
 export class ThemeIcon {
@@ -146,6 +149,7 @@ export const TextEditorRevealType = {
 
 export const StatusBarAlignment = { Left: 1, Right: 2 } as const;
 export const QuickPickItemKind = { Default: 0, Separator: -1 } as const;
+export const TreeItemCollapsibleState = { None: 0, Collapsed: 1, Expanded: 2 } as const;
 
 export const window = {
 	activeTextEditor: undefined as unknown,

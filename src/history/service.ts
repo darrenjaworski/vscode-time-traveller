@@ -22,9 +22,18 @@ export interface HistoryContext {
 	repoRoot: string;
 	relPath: string;
 	entries: HistoryEntry[];
+	/** True when the backing `git log` returned as many records as requested —
+	 * i.e. there are (probably) older commits we haven't loaded yet. */
+	hasMore: boolean;
+	/** The `maxCount` used to produce `entries`. Pagination UI uses this to
+	 * build the next page request. */
+	limit: number;
 }
 
-export const DEFAULT_MAX_HISTORY = 200;
+export const HISTORY_PAGE_SIZE = 50;
+/** Kept as a back-compat alias; new code should use pagination instead of
+ * reaching for a single fat fetch. */
+export const DEFAULT_MAX_HISTORY = HISTORY_PAGE_SIZE;
 
 export function toHistoryEntry(record: RawLogRecord): HistoryEntry {
 	const parents = record.parents ? record.parents.split(' ').filter(Boolean) : [];
@@ -74,8 +83,9 @@ const defaultDeps: HistoryServiceDeps = {
 
 export async function getFileHistory(
 	uri: vscode.Uri,
-	maxCount: number = DEFAULT_MAX_HISTORY,
+	maxCount: number = HISTORY_PAGE_SIZE,
 	deps: HistoryServiceDeps = defaultDeps,
+	cache?: HistoryCache,
 ): Promise<HistoryContext | undefined> {
 	if (uri.scheme !== 'file') {
 		return undefined;
@@ -89,10 +99,84 @@ export async function getFileHistory(
 	if (!relPath || relPath.startsWith('..')) {
 		return undefined;
 	}
+	const cached = cache?.get(repoRoot, relPath, maxCount);
+	if (cached) return cached;
 	const [records, pathsBySha] = await Promise.all([
 		deps.log(repoRoot, relPath, maxCount),
 		deps.renames(repoRoot, relPath, maxCount),
 	]);
 	const entries = applyRenames(records.map(toHistoryEntry), pathsBySha);
-	return { repoRoot, relPath, entries };
+	const context: HistoryContext = {
+		repoRoot,
+		relPath,
+		entries,
+		limit: maxCount,
+		// If git returned exactly as many records as we asked for, assume there
+		// are more. The only false positive is "repo has exactly N commits
+		// touching this file"; the follow-up page load returns [] and the UI
+		// hides "Load more" on the next render.
+		hasMore: records.length >= maxCount,
+	};
+	cache?.set(repoRoot, relPath, maxCount, context);
+	return context;
+}
+
+/**
+ * Tiny FIFO cache keyed by `(repoRoot, relPath, limit)`. Scope is intentionally
+ * modest: memoize within a session so re-renders (baseline change, editor
+ * focus flicker) don't re-shell `git log`, and invalidate in bulk when a repo's
+ * state changes (branch switch, HEAD move, fetch).
+ */
+export class HistoryCache {
+	private readonly map = new Map<string, HistoryContext>();
+
+	constructor(private readonly maxEntries: number = 64) {}
+
+	private key(repoRoot: string, relPath: string, limit: number): string {
+		return `${repoRoot}\x1F${relPath}\x1F${limit}`;
+	}
+
+	get(repoRoot: string, relPath: string, limit: number): HistoryContext | undefined {
+		const k = this.key(repoRoot, relPath, limit);
+		const hit = this.map.get(k);
+		if (hit) {
+			// Bump to MRU position so bulk eviction prefers stale entries.
+			this.map.delete(k);
+			this.map.set(k, hit);
+		}
+		return hit;
+	}
+
+	set(repoRoot: string, relPath: string, limit: number, value: HistoryContext): void {
+		const k = this.key(repoRoot, relPath, limit);
+		this.map.delete(k);
+		this.map.set(k, value);
+		while (this.map.size > this.maxEntries) {
+			const oldest = this.map.keys().next().value;
+			if (oldest === undefined) break;
+			this.map.delete(oldest);
+		}
+	}
+
+	invalidateRepo(repoRoot: string): void {
+		const prefix = `${repoRoot}\x1F`;
+		for (const k of [...this.map.keys()]) {
+			if (k.startsWith(prefix)) this.map.delete(k);
+		}
+	}
+
+	invalidateFile(repoRoot: string, relPath: string): void {
+		const prefix = `${repoRoot}\x1F${relPath}\x1F`;
+		for (const k of [...this.map.keys()]) {
+			if (k.startsWith(prefix)) this.map.delete(k);
+		}
+	}
+
+	clear(): void {
+		this.map.clear();
+	}
+
+	get size(): number {
+		return this.map.size;
+	}
 }

@@ -100,7 +100,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		),
 	);
 
-	context.subscriptions.push(registerHistoryView(baseline));
+	context.subscriptions.push(registerHistoryView(baseline, context.workspaceState));
 	context.subscriptions.push(registerHunkCodeLens(baseline));
 	context.subscriptions.push(registerChangeHover(baseline));
 	context.subscriptions.push(registerHistorianParticipant(baseline));

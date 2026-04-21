@@ -3,17 +3,45 @@ import { BaselineStore } from '../baseline';
 import { findRepository, getGitAPI } from '../git/api';
 import { makeTimeTravellerUri } from '../quickDiff';
 import { buildCommitUrl, parseRemoteUrl } from '../remote';
+import type { HistoryGrouping, PersistedHistoryState } from './filters';
 import { HistoryProvider, type HistoryNode } from './provider';
 
-export function registerHistoryView(baseline: BaselineStore): vscode.Disposable {
+const PERSIST_KEY = 'timeTraveller.history.state';
+
+export function registerHistoryView(
+	baseline: BaselineStore,
+	workspaceState?: vscode.Memento,
+): vscode.Disposable {
 	const provider = new HistoryProvider(baseline);
 	const disposables: vscode.Disposable[] = [];
 
+	const persisted = workspaceState?.get<PersistedHistoryState>(PERSIST_KEY);
+	provider.restorePersistedState(persisted);
+
 	const treeView = vscode.window.createTreeView('timeTraveller.fileHistory', {
 		treeDataProvider: provider,
-		showCollapseAll: false,
+		showCollapseAll: true,
 	});
 	disposables.push(treeView);
+
+	const applyViewDecorations = () => {
+		const desc = provider.describeState();
+		treeView.description = desc.length > 0 ? desc : undefined;
+		void vscode.commands.executeCommand(
+			'setContext',
+			'timeTraveller.history.hasFilters',
+			provider.hasActiveFilters(),
+		);
+	};
+	applyViewDecorations();
+	disposables.push(
+		provider.onDidChangeFilters(() => {
+			applyViewDecorations();
+			if (workspaceState) {
+				void workspaceState.update(PERSIST_KEY, provider.getPersistedState());
+			}
+		}),
+	);
 
 	const scheduleRefresh = debounce(() => provider.refresh(), 150);
 	disposables.push(
@@ -32,9 +60,40 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 	// repos show up so the panel self-heals.
 	void getGitAPI().then((api) => {
 		if (!api) return;
+		// Per-repo subscriptions for `state.onDidChange` so branch switches,
+		// HEAD moves, fetches, and merges bust the cache for that repo.
+		const repoSubs = new Map<string, vscode.Disposable>();
+		const subscribe = (repo: {
+			rootUri: vscode.Uri;
+			state: { onDidChange: vscode.Event<void> };
+		}) => {
+			const key = repo.rootUri.fsPath;
+			if (repoSubs.has(key)) return;
+			const sub = repo.state.onDidChange(() => {
+				provider.invalidateAndRefresh(key);
+			});
+			repoSubs.set(key, sub);
+		};
+		const unsubscribe = (repo: { rootUri: vscode.Uri }) => {
+			const key = repo.rootUri.fsPath;
+			repoSubs.get(key)?.dispose();
+			repoSubs.delete(key);
+			provider.getCache().invalidateRepo(key);
+		};
+		for (const repo of api.repositories) subscribe(repo);
 		disposables.push(
-			api.onDidOpenRepository(() => scheduleRefresh()),
-			api.onDidCloseRepository(() => scheduleRefresh()),
+			api.onDidOpenRepository((repo) => {
+				subscribe(repo);
+				scheduleRefresh();
+			}),
+			api.onDidCloseRepository((repo) => {
+				unsubscribe(repo);
+				scheduleRefresh();
+			}),
+			new vscode.Disposable(() => {
+				for (const sub of repoSubs.values()) sub.dispose();
+				repoSubs.clear();
+			}),
 		);
 		// Also retry now in case the API was already populated but our first
 		// refresh ran before the await resolved.
@@ -44,7 +103,46 @@ export function registerHistoryView(baseline: BaselineStore): vscode.Disposable 
 	void provider.refresh();
 
 	disposables.push(
-		vscode.commands.registerCommand('timeTraveller.history.refresh', () => provider.refresh()),
+		vscode.commands.registerCommand('timeTraveller.history.refresh', () => {
+			provider.invalidateAndRefresh();
+		}),
+
+		vscode.commands.registerCommand('timeTraveller.history.loadMore', () => provider.loadMore()),
+
+		vscode.commands.registerCommand('timeTraveller.history.setTextFilter', async () => {
+			const current = provider.getFilters();
+			const typed = await vscode.window.showInputBox({
+				prompt: 'Filter commits by subject or body text (leave empty to clear)',
+				placeHolder: 'e.g. "fix login", "refactor", case-insensitive',
+				value: current.text ?? '',
+			});
+			if (typed === undefined) return;
+			provider.setFilters({ ...current, text: typed.trim().length > 0 ? typed : undefined });
+		}),
+
+		vscode.commands.registerCommand('timeTraveller.history.toggleHideMerges', () => {
+			const current = provider.getFilters();
+			provider.setFilters({ ...current, hideMerges: !current.hideMerges });
+		}),
+
+		vscode.commands.registerCommand('timeTraveller.history.setGrouping', async () => {
+			const current = provider.getGrouping();
+			const picked = await vscode.window.showQuickPick(
+				[
+					{ label: 'None', value: 'none' as HistoryGrouping },
+					{ label: 'By date', value: 'date' as HistoryGrouping },
+					{ label: 'By author', value: 'author' as HistoryGrouping },
+				].map((o) => ({ ...o, description: o.value === current ? '(current)' : undefined })),
+				{ placeHolder: 'Group file history by…' },
+			);
+			if (!picked) return;
+			provider.setGrouping(picked.value);
+		}),
+
+		vscode.commands.registerCommand('timeTraveller.history.clearFilters', () => {
+			provider.setFilters({});
+			provider.setGrouping('none');
+		}),
 
 		vscode.commands.registerCommand(
 			'timeTraveller.history.setBaseline',

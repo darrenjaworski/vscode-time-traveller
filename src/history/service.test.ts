@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as vscode from 'vscode';
 import type { RawLogRecord } from '../git/cli';
-import { applyRenames, toHistoryEntry, type HistoryEntry } from './service';
+import {
+	applyRenames,
+	getFileHistory,
+	HistoryCache,
+	HISTORY_PAGE_SIZE,
+	toHistoryEntry,
+	type HistoryContext,
+	type HistoryEntry,
+} from './service';
 
 function baseRecord(overrides: Partial<RawLogRecord> = {}): RawLogRecord {
 	return {
@@ -107,5 +116,121 @@ describe('applyRenames', () => {
 		]);
 		applyRenames(entries, paths);
 		expect(entries[0].renamedFrom).toBeUndefined();
+	});
+});
+
+describe('HistoryCache', () => {
+	function ctx(repoRoot: string, relPath: string, limit: number): HistoryContext {
+		return { repoRoot, relPath, entries: [], hasMore: false, limit };
+	}
+
+	it('returns undefined on miss, the stored value on hit', () => {
+		const cache = new HistoryCache();
+		expect(cache.get('/r', 'f.ts', 50)).toBeUndefined();
+		const value = ctx('/r', 'f.ts', 50);
+		cache.set('/r', 'f.ts', 50, value);
+		expect(cache.get('/r', 'f.ts', 50)).toBe(value);
+	});
+
+	it('treats different limits as distinct keys', () => {
+		const cache = new HistoryCache();
+		cache.set('/r', 'f.ts', 50, ctx('/r', 'f.ts', 50));
+		expect(cache.get('/r', 'f.ts', 100)).toBeUndefined();
+	});
+
+	it('evicts the oldest entry once maxEntries is exceeded', () => {
+		const cache = new HistoryCache(2);
+		cache.set('/r', 'a.ts', 50, ctx('/r', 'a.ts', 50));
+		cache.set('/r', 'b.ts', 50, ctx('/r', 'b.ts', 50));
+		cache.set('/r', 'c.ts', 50, ctx('/r', 'c.ts', 50));
+		expect(cache.get('/r', 'a.ts', 50)).toBeUndefined();
+		expect(cache.get('/r', 'b.ts', 50)).toBeDefined();
+		expect(cache.get('/r', 'c.ts', 50)).toBeDefined();
+	});
+
+	it('bumps hit entries to MRU so a read protects them from eviction', () => {
+		const cache = new HistoryCache(2);
+		cache.set('/r', 'a.ts', 50, ctx('/r', 'a.ts', 50));
+		cache.set('/r', 'b.ts', 50, ctx('/r', 'b.ts', 50));
+		cache.get('/r', 'a.ts', 50); // touch a -> MRU
+		cache.set('/r', 'c.ts', 50, ctx('/r', 'c.ts', 50));
+		expect(cache.get('/r', 'a.ts', 50)).toBeDefined();
+		expect(cache.get('/r', 'b.ts', 50)).toBeUndefined();
+	});
+
+	it('invalidateRepo drops every entry for that repo root', () => {
+		const cache = new HistoryCache();
+		cache.set('/r1', 'a.ts', 50, ctx('/r1', 'a.ts', 50));
+		cache.set('/r1', 'b.ts', 50, ctx('/r1', 'b.ts', 50));
+		cache.set('/r2', 'c.ts', 50, ctx('/r2', 'c.ts', 50));
+		cache.invalidateRepo('/r1');
+		expect(cache.get('/r1', 'a.ts', 50)).toBeUndefined();
+		expect(cache.get('/r1', 'b.ts', 50)).toBeUndefined();
+		expect(cache.get('/r2', 'c.ts', 50)).toBeDefined();
+	});
+
+	it('invalidateFile drops only matching path entries across all limits', () => {
+		const cache = new HistoryCache();
+		cache.set('/r', 'a.ts', 50, ctx('/r', 'a.ts', 50));
+		cache.set('/r', 'a.ts', 100, ctx('/r', 'a.ts', 100));
+		cache.set('/r', 'b.ts', 50, ctx('/r', 'b.ts', 50));
+		cache.invalidateFile('/r', 'a.ts');
+		expect(cache.get('/r', 'a.ts', 50)).toBeUndefined();
+		expect(cache.get('/r', 'a.ts', 100)).toBeUndefined();
+		expect(cache.get('/r', 'b.ts', 50)).toBeDefined();
+	});
+});
+
+describe('getFileHistory pagination', () => {
+	function makeDeps(records: RawLogRecord[]) {
+		return {
+			findRepo: vi.fn(async () => ({ rootUri: vscode.Uri.file('/repo') })) as never,
+			log: vi.fn(async (_root: string, _rel: string, max: number) => records.slice(0, max)),
+			renames: vi.fn(async () => new Map<string, string>()),
+		};
+	}
+
+	it('sets hasMore=true when git returns exactly `limit` records', async () => {
+		const records = Array.from({ length: 50 }, (_, i) =>
+			baseRecord({ sha: String(i).padStart(40, '0') }),
+		);
+		const result = await getFileHistory(vscode.Uri.file('/repo/a.ts'), 50, makeDeps(records));
+		expect(result?.hasMore).toBe(true);
+		expect(result?.limit).toBe(50);
+		expect(result?.entries).toHaveLength(50);
+	});
+
+	it('sets hasMore=false when git returns fewer than requested', async () => {
+		const records = Array.from({ length: 12 }, (_, i) =>
+			baseRecord({ sha: String(i).padStart(40, '0') }),
+		);
+		const result = await getFileHistory(vscode.Uri.file('/repo/a.ts'), 50, makeDeps(records));
+		expect(result?.hasMore).toBe(false);
+		expect(result?.entries).toHaveLength(12);
+	});
+
+	it('memoizes via cache so repeat calls skip the shell-out', async () => {
+		const records = [baseRecord()];
+		const deps = makeDeps(records);
+		const cache = new HistoryCache();
+		const first = await getFileHistory(vscode.Uri.file('/repo/a.ts'), 50, deps, cache);
+		const second = await getFileHistory(vscode.Uri.file('/repo/a.ts'), 50, deps, cache);
+		expect(second).toBe(first);
+		expect(deps.log).toHaveBeenCalledTimes(1);
+	});
+
+	it('re-shells after invalidateRepo', async () => {
+		const deps = makeDeps([baseRecord()]);
+		const cache = new HistoryCache();
+		await getFileHistory(vscode.Uri.file('/repo/a.ts'), 50, deps, cache);
+		cache.invalidateRepo('/repo');
+		await getFileHistory(vscode.Uri.file('/repo/a.ts'), 50, deps, cache);
+		expect(deps.log).toHaveBeenCalledTimes(2);
+	});
+
+	it('defaults maxCount to HISTORY_PAGE_SIZE', async () => {
+		const deps = makeDeps([baseRecord()]);
+		await getFileHistory(vscode.Uri.file('/repo/a.ts'), undefined, deps);
+		expect(deps.log).toHaveBeenCalledWith('/repo', 'a.ts', HISTORY_PAGE_SIZE);
 	});
 });

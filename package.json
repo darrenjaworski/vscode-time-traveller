@@ -145,6 +145,35 @@
         "command": "timeTraveller.history.copySubject",
         "title": "Copy commit subject",
         "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.history.loadMore",
+        "title": "Load more history",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.history.setTextFilter",
+        "title": "Filter by subject/body…",
+        "category": "Time Traveller",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "timeTraveller.history.toggleHideMerges",
+        "title": "Toggle hide merge commits",
+        "category": "Time Traveller",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "timeTraveller.history.setGrouping",
+        "title": "Group history by…",
+        "category": "Time Traveller",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "timeTraveller.history.clearFilters",
+        "title": "Clear filters",
+        "category": "Time Traveller",
+        "icon": "$(clear-all)"
       }
     ],
     "views": {
@@ -159,14 +188,34 @@
     "menus": {
       "view/title": [
         {
-          "command": "timeTraveller.history.askHistorianAboutFile",
+          "command": "timeTraveller.history.setTextFilter",
           "when": "view == timeTraveller.fileHistory",
           "group": "navigation@1"
         },
         {
-          "command": "timeTraveller.history.refresh",
+          "command": "timeTraveller.history.setGrouping",
           "when": "view == timeTraveller.fileHistory",
           "group": "navigation@2"
+        },
+        {
+          "command": "timeTraveller.history.clearFilters",
+          "when": "view == timeTraveller.fileHistory && timeTraveller.history.hasFilters",
+          "group": "navigation@3"
+        },
+        {
+          "command": "timeTraveller.history.askHistorianAboutFile",
+          "when": "view == timeTraveller.fileHistory",
+          "group": "navigation@4"
+        },
+        {
+          "command": "timeTraveller.history.refresh",
+          "when": "view == timeTraveller.fileHistory",
+          "group": "navigation@5"
+        },
+        {
+          "command": "timeTraveller.history.toggleHideMerges",
+          "when": "view == timeTraveller.fileHistory",
+          "group": "1_filters@1"
         }
       ],
       "view/item/context": [
@@ -282,6 +331,10 @@
         },
         {
           "command": "timeTraveller.askHistorianForHunk",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.loadMore",
           "when": "false"
         }
       ]

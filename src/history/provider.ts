@@ -3,7 +3,24 @@ import { BaselineStore } from '../baseline';
 import { isFileDirty, relativeTo } from '../git/cli';
 import { findRepository } from '../git/api';
 import { relativeTime } from './format';
-import { getFileHistory, type HistoryContext, type HistoryEntry } from './service';
+import {
+	DEFAULT_GROUPING,
+	describeFilters,
+	EMPTY_FILTERS,
+	filterEntries,
+	groupEntries,
+	hasActiveFilters,
+	type HistoryFilters,
+	type HistoryGrouping,
+	type PersistedHistoryState,
+} from './filters';
+import {
+	getFileHistory,
+	HISTORY_PAGE_SIZE,
+	HistoryCache,
+	type HistoryContext,
+	type HistoryEntry,
+} from './service';
 
 export type HistoryNode =
 	| {
@@ -14,6 +31,8 @@ export type HistoryNode =
 			previousSha?: string;
 	  }
 	| { kind: 'workingTree'; repoRoot: string; relPath: string }
+	| { kind: 'loadMore'; nextLimit: number }
+	| { kind: 'group'; label: string; count: number; children: HistoryNode[] }
 	| { kind: 'placeholder'; message: string };
 
 export const PLACEHOLDER_MESSAGES = {
@@ -23,6 +42,7 @@ export const PLACEHOLDER_MESSAGES = {
 } as const;
 
 export const WORKING_TREE_LABEL = '● Working tree (uncommitted changes)';
+export const LOAD_MORE_LABEL = 'Load more…';
 
 export function iconIdFor(entry: HistoryEntry, currentBaseline: string | undefined): string {
 	if (currentBaseline === entry.sha) return 'target';
@@ -64,9 +84,61 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 	private loadedForUri: string | undefined;
 	private currentFileUri: vscode.Uri | undefined;
 	private isDirty = false;
+	private currentLimit = HISTORY_PAGE_SIZE;
+	private readonly cache: HistoryCache;
+	private readonly filterChangeEmitter = new vscode.EventEmitter<void>();
+	readonly onDidChangeFilters = this.filterChangeEmitter.event;
+	private filters: HistoryFilters = { ...EMPTY_FILTERS };
+	private grouping: HistoryGrouping = DEFAULT_GROUPING;
 
-	constructor(private readonly baseline: BaselineStore) {
+	constructor(
+		private readonly baseline: BaselineStore,
+		cache?: HistoryCache,
+	) {
+		this.cache = cache ?? new HistoryCache();
 		baseline.onDidChange(() => this.changeEmitter.fire());
+	}
+
+	getCache(): HistoryCache {
+		return this.cache;
+	}
+
+	getFilters(): HistoryFilters {
+		return this.filters;
+	}
+
+	getGrouping(): HistoryGrouping {
+		return this.grouping;
+	}
+
+	setFilters(next: HistoryFilters): void {
+		this.filters = { ...next };
+		this.filterChangeEmitter.fire();
+		this.changeEmitter.fire();
+	}
+
+	setGrouping(next: HistoryGrouping): void {
+		this.grouping = next;
+		this.filterChangeEmitter.fire();
+		this.changeEmitter.fire();
+	}
+
+	restorePersistedState(state: PersistedHistoryState | undefined): void {
+		if (!state) return;
+		this.filters = { ...EMPTY_FILTERS, ...state.filters };
+		this.grouping = state.grouping ?? DEFAULT_GROUPING;
+	}
+
+	getPersistedState(): PersistedHistoryState {
+		return { filters: { ...this.filters }, grouping: this.grouping };
+	}
+
+	describeState(): string {
+		return describeFilters(this.filters, this.grouping);
+	}
+
+	hasActiveFilters(): boolean {
+		return hasActiveFilters(this.filters);
 	}
 
 	async refresh(uri?: vscode.Uri): Promise<void> {
@@ -76,17 +148,25 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 			this.loadedForUri = undefined;
 			this.currentFileUri = undefined;
 			this.isDirty = false;
+			this.currentLimit = HISTORY_PAGE_SIZE;
 			this.changeEmitter.fire();
 			return;
 		}
-		if (this.loadedForUri === target.toString() && !uri) {
+		const targetKey = target.toString();
+		const sameFile = this.loadedForUri === targetKey;
+		if (sameFile && !uri) {
 			return;
+		}
+		// Switching files resets pagination; an explicit refresh of the same
+		// file preserves the currentLimit so "Load more" state survives reloads.
+		if (!sameFile) {
+			this.currentLimit = HISTORY_PAGE_SIZE;
 		}
 		this.currentFileUri = target;
 		this.loading = true;
 		this.changeEmitter.fire();
 		try {
-			const context = await getFileHistory(target);
+			const context = await getFileHistory(target, this.currentLimit, undefined, this.cache);
 			const dirty = await this.checkDirty(target);
 			this.context = context;
 			this.isDirty = dirty;
@@ -95,7 +175,7 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 			// repositories, network hiccup, etc.) would stick forever because
 			// the early-return at the top of refresh() would skip retries.
 			if (context) {
-				this.loadedForUri = target.toString();
+				this.loadedForUri = targetKey;
 			} else {
 				this.loadedForUri = undefined;
 			}
@@ -103,6 +183,20 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 			this.loading = false;
 			this.changeEmitter.fire();
 		}
+	}
+
+	async loadMore(): Promise<void> {
+		if (!this.currentFileUri || !this.context?.hasMore) return;
+		this.currentLimit += HISTORY_PAGE_SIZE;
+		await this.refresh(this.currentFileUri);
+	}
+
+	invalidateAndRefresh(repoRoot?: string): void {
+		if (repoRoot) this.cache.invalidateRepo(repoRoot);
+		else this.cache.clear();
+		// Force a reload by clearing loadedForUri so refresh() doesn't short-circuit.
+		this.loadedForUri = undefined;
+		void this.refresh(this.currentFileUri);
 	}
 
 	private async checkDirty(uri: vscode.Uri): Promise<boolean> {
@@ -121,6 +215,23 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		if (node.kind === 'placeholder') {
 			const item = new vscode.TreeItem(node.message);
 			item.contextValue = 'timeTraveller.history.placeholder';
+			return item;
+		}
+		if (node.kind === 'group') {
+			const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.Expanded);
+			item.description = `${node.count}`;
+			item.iconPath = new vscode.ThemeIcon('folder');
+			item.contextValue = 'timeTraveller.history.group';
+			return item;
+		}
+		if (node.kind === 'loadMore') {
+			const item = new vscode.TreeItem(LOAD_MORE_LABEL);
+			item.iconPath = new vscode.ThemeIcon('chevron-down');
+			item.contextValue = 'timeTraveller.history.loadMore';
+			item.command = {
+				command: 'timeTraveller.history.loadMore',
+				title: 'Load more history',
+			};
 			return item;
 		}
 		if (node.kind === 'workingTree') {
@@ -154,7 +265,7 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 
 	getChildren(node?: HistoryNode): HistoryNode[] {
 		if (node) {
-			return [];
+			return node.kind === 'group' ? node.children : [];
 		}
 		if (this.loading) {
 			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.loading }];
@@ -170,13 +281,35 @@ export class HistoryProvider implements vscode.TreeDataProvider<HistoryNode> {
 		if (ctx.entries.length === 0) {
 			return [{ kind: 'placeholder', message: PLACEHOLDER_MESSAGES.empty }];
 		}
-		const entryNodes: HistoryNode[] = ctx.entries.map((entry, idx, arr) => ({
+		const filtered = filterEntries(ctx.entries, this.filters);
+		const loadMoreRow: HistoryNode[] = ctx.hasMore
+			? [{ kind: 'loadMore', nextLimit: ctx.limit + HISTORY_PAGE_SIZE }]
+			: [];
+		if (filtered.length === 0) {
+			// "Load more" still offered — the next page may contain matches.
+			return [
+				...workingTreeRow,
+				{ kind: 'placeholder', message: 'No commits match the current filters.' },
+				...loadMoreRow,
+			];
+		}
+		const toEntryNode = (entry: HistoryEntry, idx: number, arr: HistoryEntry[]): HistoryNode => ({
 			kind: 'entry',
 			entry,
 			repoRoot: ctx.repoRoot,
 			relPath: ctx.relPath,
 			previousSha: arr[idx + 1]?.sha,
+		});
+		if (this.grouping === 'none') {
+			return [...workingTreeRow, ...filtered.map(toEntryNode), ...loadMoreRow];
+		}
+		const groups = groupEntries(filtered, this.grouping);
+		const groupNodes: HistoryNode[] = groups.map((g) => ({
+			kind: 'group',
+			label: g.label,
+			count: g.entries.length,
+			children: g.entries.map(toEntryNode),
 		}));
-		return [...workingTreeRow, ...entryNodes];
+		return [...workingTreeRow, ...groupNodes, ...loadMoreRow];
 	}
 }
