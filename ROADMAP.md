@@ -52,7 +52,7 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 - [x] Follows renames (`git log --follow`) and surfaces a "renamed from …" affordance on the first post-rename entry
 - [x] Pagination: default page size 50 with a virtual "Load more…" node; clicking it grows the limit and re-renders. Backed by `HistoryCache` so pagination state survives repeated refreshes on the same file
 - [x] Grouping toggle: None (default) · By date bucket (Today / Yesterday / This week / This month / This year / Older) · By author — `src/history/filters.ts` + `timeTraveller.history.setGrouping` command
-- [ ] Story of a commit, instead of one file history, pick a commit and generate a story
+- [x] Story of a commit — right-click a history row → "Tell the story of this commit". Reuses the `@historian` pipeline with a commit-focused `/story` framing and a `git show --numstat` "Files changed" section in the prompt (`showCommitStat` in `src/git/cli.ts`, commit-story branch in `src/historian/prompt.ts`)
 
 ### Interactions
 
@@ -106,10 +106,10 @@ Goal: a sidebar panel that shows `git log` for the active file in a short format
 
 ### Exit criteria
 
-- [ ] Opening any tracked file populates the panel within 300 ms for repos with ≤10k commits touching that file
-- [ ] Clicking a row updates gutter diff in the active editor without reloading the document
-- [ ] "Ask @historian about this commit" lands in chat with the SHA already in the prompt
-- [ ] Panel survives branch switches, merges, rebases, and stashes without stale entries
+- [ ] Opening any tracked file populates the panel within 300 ms for repos with ≤10k commits touching that file — needs measurement in a real Extension Host; pagination (50 per page) + `HistoryCache` make the architecture plausible but it isn't verified
+- [x] Clicking a row updates gutter diff in the active editor without reloading the document — `BaselineStore.setForFile` fires a tagged `BaselineChange`, `TimeTravellerQuickDiff` refires `onDidChange` for the matching live-baseline URI, and VS Code re-reads fresh content in place
+- [x] "Ask @historian about this commit" lands in chat with the SHA already in the prompt — `timeTraveller.history.askHistorian` (and `.storyOfCommit`) prefill via `workbench.action.chat.open`; `extractShaMention` picks it up on the other side
+- [x] Panel survives branch switches, merges, rebases, and stashes without stale entries — each open repo's `state.onDidChange` calls `HistoryProvider.invalidateAndRefresh(repoRoot)` so the cache is busted for that repo when HEAD moves
 
 ## Phase 2 — Multi-baseline & scoping
 

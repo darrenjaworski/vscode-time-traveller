@@ -3,6 +3,7 @@ import {
 	LOG_FORMAT,
 	parseBlamePorcelain,
 	parseLog,
+	parseNumstat,
 	parsePathsByCommit,
 	parseStashList,
 	shellQuote,
@@ -219,5 +220,36 @@ describe('parseStashList', () => {
 	it('skips lines with no name field', () => {
 		const stdout = '\x1FWIP\nstash@{0}\x1Freal entry';
 		expect(parseStashList(stdout)).toEqual([{ name: 'stash@{0}', subject: 'real entry' }]);
+	});
+});
+
+describe('parseNumstat', () => {
+	it('returns [] for empty input', () => {
+		expect(parseNumstat('')).toEqual([]);
+	});
+
+	it('parses added/deleted/path triples', () => {
+		const stdout = '4\t2\tsrc/a.ts\n0\t10\tsrc/b.ts\n';
+		expect(parseNumstat(stdout)).toEqual([
+			{ path: 'src/a.ts', additions: 4, deletions: 2, binary: false },
+			{ path: 'src/b.ts', additions: 0, deletions: 10, binary: false },
+		]);
+	});
+
+	it('marks `-\\t-` rows as binary with zero line counts', () => {
+		const stdout = '-\t-\tassets/logo.png\n';
+		expect(parseNumstat(stdout)).toEqual([
+			{ path: 'assets/logo.png', additions: 0, deletions: 0, binary: true },
+		]);
+	});
+
+	it('keeps tabs that appear inside the path', () => {
+		const stdout = '1\t0\tpath\twith\ttabs.ts';
+		expect(parseNumstat(stdout)[0].path).toBe('path\twith\ttabs.ts');
+	});
+
+	it('skips blank or short lines', () => {
+		const stdout = '\n\n2\t1\tok.ts\nweird line\n';
+		expect(parseNumstat(stdout)).toHaveLength(1);
 	});
 });

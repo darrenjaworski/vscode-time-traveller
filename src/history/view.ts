@@ -226,6 +226,15 @@ export function registerHistoryView(
 			},
 		),
 
+		vscode.commands.registerCommand(
+			'timeTraveller.history.storyOfCommit',
+			async (node: HistoryNode) => {
+				if (node?.kind !== 'entry') return;
+				const query = `@historian /story ${node.entry.shortSha} — tell the story of this commit (${node.entry.subject})`;
+				await vscode.commands.executeCommand('workbench.action.chat.open', { query });
+			},
+		),
+
 		vscode.commands.registerCommand('timeTraveller.history.askHistorianAboutFile', async () => {
 			const ctx = provider.getCurrentContext();
 			const activeUri = vscode.window.activeTextEditor?.document.uri;

@@ -284,6 +284,51 @@ export async function getFileDiff(repoRoot: string, ref: string, relPath: string
 	}
 }
 
+export interface CommitFileChange {
+	path: string;
+	additions: number;
+	deletions: number;
+	/** True when `--numstat` emits `-` for a binary file (no line counts). */
+	binary: boolean;
+}
+
+/**
+ * `git show --numstat --format= <sha>` — one line per file with
+ * `<added>\t<deleted>\t<path>`. Binary files emit `-\t-\t<path>`.
+ * Returns the file list in git's own order (roughly: path).
+ */
+export async function showCommitStat(repoRoot: string, sha: string): Promise<CommitFileChange[]> {
+	try {
+		const { stdout } = await execAsync(`git show --numstat --format= ${shellQuote(sha)}`, {
+			cwd: repoRoot,
+			maxBuffer: MAX_BUFFER,
+		});
+		return parseNumstat(stdout);
+	} catch {
+		return [];
+	}
+}
+
+export function parseNumstat(stdout: string): CommitFileChange[] {
+	const out: CommitFileChange[] = [];
+	for (const raw of stdout.split('\n')) {
+		const line = raw.trimEnd();
+		if (!line) continue;
+		const parts = line.split('\t');
+		if (parts.length < 3) continue;
+		const [addedStr, deletedStr, ...pathParts] = parts;
+		const path = pathParts.join('\t');
+		const binary = addedStr === '-' || deletedStr === '-';
+		out.push({
+			path,
+			additions: binary ? 0 : Number.parseInt(addedStr, 10) || 0,
+			deletions: binary ? 0 : Number.parseInt(deletedStr, 10) || 0,
+			binary,
+		});
+	}
+	return out;
+}
+
 export async function getMergeBase(
 	repoRoot: string,
 	ref1: string,

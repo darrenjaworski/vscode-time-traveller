@@ -7,7 +7,9 @@ import {
 	logFileByAuthor,
 	logFileSince,
 	relativeTo,
+	showCommitStat,
 	type BlameLine,
+	type CommitFileChange,
 	type RawLogRecord,
 } from './git/cli';
 import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
@@ -133,6 +135,24 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		blameLines = await blameRange(repoRoot, relPath, selection.startLine, selection.endLine);
 	}
 
+	let commitFiles: Map<string, CommitFileChange[]> | undefined;
+	if (commitFocused && referencedSha) {
+		// Resolve the prompt's short SHA to the full SHA via the file log, so
+		// `git show` gets a stable ref and `commitFiles` keys match the keys
+		// composeEvidence uses for referencedCommits.
+		const match = records.find(
+			(r) =>
+				r.sha.toLowerCase() === referencedSha.toLowerCase() ||
+				r.sha.toLowerCase().startsWith(referencedSha.toLowerCase()) ||
+				r.shortSha.toLowerCase() === referencedSha.toLowerCase(),
+		);
+		const fullSha = match?.sha ?? referencedSha;
+		const files = await showCommitStat(repoRoot, fullSha);
+		if (files.length > 0) {
+			commitFiles = new Map([[fullSha, files]]);
+		}
+	}
+
 	return composeEvidence({
 		relPath,
 		selection,
@@ -140,6 +160,7 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		fileRecords: records,
 		referencedShas: referencedSha ? [referencedSha] : undefined,
 		filterDescription,
+		commitFiles,
 	});
 }
 

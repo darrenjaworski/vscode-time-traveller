@@ -137,6 +137,12 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "timeTraveller.history.storyOfCommit",
+        "title": "Tell the story of this commit",
+        "category": "Time Traveller",
+        "icon": "$(book)"
+      },
+      {
         "command": "timeTraveller.history.copySha",
         "title": "Copy commit SHA",
         "category": "Time Traveller"
@@ -270,6 +276,11 @@
           "group": "3_chat@1"
         },
         {
+          "command": "timeTraveller.history.storyOfCommit",
+          "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
+          "group": "3_chat@2"
+        },
+        {
           "command": "timeTraveller.history.copySha",
           "when": "view == timeTraveller.fileHistory && viewItem == timeTraveller.history.entry",
           "group": "9_copy@1"
@@ -335,6 +346,10 @@
         },
         {
           "command": "timeTraveller.history.loadMore",
+          "when": "false"
+        },
+        {
+          "command": "timeTraveller.history.storyOfCommit",
           "when": "false"
         }
       ]

@@ -5,7 +5,7 @@
  * runtime. The orchestrator shells out via `src/git/cli.ts`, then feeds the
  * raw records to `composeEvidence`.
  */
-import type { BlameLine, RawLogRecord } from '../git/cli';
+import type { BlameLine, CommitFileChange, RawLogRecord } from '../git/cli';
 
 export interface CommitSummary {
 	sha: string;
@@ -43,6 +43,10 @@ export interface Evidence {
 	 * the author pattern for `/author`. Non-semantic, just a hint for the
 	 * prompt header. */
 	filterDescription?: string;
+	/** Per-commit file stats (from `git show --numstat`), keyed by full SHA.
+	 * Populated for commit-focused queries — lets the prompt ground a "story
+	 * of a commit" in what the commit actually touched. */
+	commitFiles?: Map<string, CommitFileChange[]>;
 }
 
 export function recordToSummary(record: RawLogRecord): CommitSummary {
@@ -76,6 +80,7 @@ export interface EvidenceInputs {
 	fileRecords: RawLogRecord[];
 	referencedShas?: string[];
 	filterDescription?: string;
+	commitFiles?: Map<string, CommitFileChange[]>;
 }
 
 export function composeEvidence(inputs: EvidenceInputs): Evidence {
@@ -100,6 +105,7 @@ export function composeEvidence(inputs: EvidenceInputs): Evidence {
 		fileCommits,
 		referencedCommits,
 		filterDescription: inputs.filterDescription,
+		commitFiles: inputs.commitFiles,
 	};
 }
 

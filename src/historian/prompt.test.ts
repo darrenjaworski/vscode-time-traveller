@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { BlameLine } from '../git/cli';
 import { composeEvidence, recordToSummary } from './evidence';
 import type { Evidence } from './evidence';
-import { buildUserPrompt, compressRanges, formatSmartTimestamp, systemPrompt } from './prompt';
+import type { CommitFileChange } from '../git/cli';
+import {
+	buildUserPrompt,
+	compressRanges,
+	formatSmartTimestamp,
+	isCommitStory,
+	systemPrompt,
+} from './prompt';
 
 const NOW = new Date('2026-04-19T12:00:00Z');
 
@@ -219,6 +226,80 @@ describe('formatSmartTimestamp', () => {
 
 	it('zero-pads single-digit hours and minutes', () => {
 		expect(formatSmartTimestamp(new Date('2026-04-19T03:04:05Z'), NOW)).toBe('03:04');
+	});
+});
+
+describe('isCommitStory', () => {
+	it('is true only when /story names a specific commit', () => {
+		const withRef = composeEvidence({
+			fileRecords: [rec('a'.repeat(40), 's')],
+			referencedShas: ['a'.repeat(40)],
+		});
+		const plain = composeEvidence({ fileRecords: [rec('a'.repeat(40), 's')] });
+		expect(isCommitStory(withRef, 'story')).toBe(true);
+		expect(isCommitStory(plain, 'story')).toBe(false);
+		expect(isCommitStory(withRef, 'why')).toBe(false);
+	});
+});
+
+describe('buildUserPrompt (commit-story mode)', () => {
+	function file(path: string, add = 1, del = 0): CommitFileChange {
+		return { path, additions: add, deletions: del, binary: false };
+	}
+	function binaryFile(path: string): CommitFileChange {
+		return { path, additions: 0, deletions: 0, binary: true };
+	}
+
+	it('switches the task framing when /story references a commit', () => {
+		const sha = 'a'.repeat(40);
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec(sha, 'Refactor the auth flow')],
+			referencedShas: [sha],
+		});
+		const out = buildUserPrompt(evidence, 'story', '', NOW);
+		expect(out).toContain('Tell the story of the referenced commit');
+		expect(out).not.toContain('narrative timeline of how this file');
+		expect(out).toContain('Surrounding file history');
+	});
+
+	it('includes a "Files changed" section when commitFiles is populated', () => {
+		const sha = 'a'.repeat(40);
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec(sha, 'Refactor')],
+			referencedShas: [sha],
+			commitFiles: new Map([[sha, [file('src/a.ts', 4, 2), binaryFile('assets/logo.png')]]]),
+		});
+		const out = buildUserPrompt(evidence, 'story', '', NOW);
+		expect(out).toContain('Files changed in `aaaaaaa`');
+		expect(out).toContain('- src/a.ts · +4 -2');
+		expect(out).toContain('- assets/logo.png (binary)');
+	});
+
+	it('caps very wide commits and notes the overflow', () => {
+		const sha = 'a'.repeat(40);
+		const files: CommitFileChange[] = Array.from({ length: 25 }, (_, i) =>
+			file(`src/f${i}.ts`, 1, 1),
+		);
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec(sha, 'Big refactor')],
+			referencedShas: [sha],
+			commitFiles: new Map([[sha, files]]),
+		});
+		const out = buildUserPrompt(evidence, 'story', '', NOW);
+		expect(out).toContain('- src/f0.ts');
+		expect(out).toContain('- src/f19.ts');
+		expect(out).not.toContain('- src/f20.ts');
+		expect(out).toContain('…and 5 more files');
+	});
+
+	it('omits the files section when no commitFiles were gathered', () => {
+		const sha = 'a'.repeat(40);
+		const evidence: Evidence = composeEvidence({
+			fileRecords: [rec(sha, 's')],
+			referencedShas: [sha],
+		});
+		const out = buildUserPrompt(evidence, 'story', '', NOW);
+		expect(out).not.toContain('Files changed in');
 	});
 });
 

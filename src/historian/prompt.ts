@@ -31,7 +31,8 @@ export function buildUserPrompt(
 ): string {
 	const sections: string[] = [];
 
-	sections.push(taskSection(command, userPrompt));
+	const commitStory = isCommitStory(evidence, command);
+	sections.push(taskSection(command, userPrompt, commitStory));
 
 	if (evidence.selection) {
 		sections.push(selectionSection(evidence.selection));
@@ -43,12 +44,16 @@ export function buildUserPrompt(
 		sections.push(referencedCommitsSection(evidence.referencedCommits, now));
 	}
 
+	if (evidence.commitFiles && evidence.commitFiles.size > 0) {
+		sections.push(commitFilesSection(evidence));
+	}
+
 	if (evidence.blameLines && evidence.blameLines.length > 0) {
 		sections.push(blameSection(evidence, now));
 	}
 
 	if (evidence.fileCommits.length > 0) {
-		sections.push(fileLogSection(evidence, command, now));
+		sections.push(fileLogSection(evidence, command, now, commitStory));
 	}
 
 	if (evidence.filterDescription) {
@@ -58,10 +63,17 @@ export function buildUserPrompt(
 	return sections.join('\n\n');
 }
 
-function taskSection(command: HistorianCommand, userPrompt: string): string {
+/** A `/story` request that names a specific commit is really "tell the story
+ * of THIS commit" — different framing than the file-level narrative. */
+export function isCommitStory(evidence: Evidence, command: HistorianCommand): boolean {
+	return command === 'story' && evidence.referencedCommits.length > 0;
+}
+
+function taskSection(command: HistorianCommand, userPrompt: string, commitStory: boolean): string {
 	const trimmed = userPrompt.trim();
-	const defaultAsk =
-		command === 'story'
+	const defaultAsk = commitStory
+		? 'Tell the story of the referenced commit: what motivated it, what it changed, and how it fits into the surrounding history. Ground every claim in the commit message, the files it touched, and adjacent commits.'
+		: command === 'story'
 			? 'Give a narrative timeline of how this file got to its current shape. Highlight turning points and keep it chronological (oldest to newest).'
 			: command === 'since'
 				? 'Explain what meaningfully changed in this file since the given reference, grouped by theme.'
@@ -122,13 +134,38 @@ function blameSection(evidence: Evidence, now: Date): string {
 	return ['Blame for the selected lines:', ...bullets].join('\n');
 }
 
-function fileLogSection(evidence: Evidence, command: HistorianCommand, now: Date): string {
-	const header =
-		command === 'story'
+function fileLogSection(
+	evidence: Evidence,
+	command: HistorianCommand,
+	now: Date,
+	commitStory: boolean,
+): string {
+	const header = commitStory
+		? 'Surrounding file history (newest → oldest), for context:'
+		: command === 'story'
 			? 'File history (newest → oldest):'
 			: 'Recent file history (newest → oldest):';
 	const capped = evidence.fileCommits.slice(0, COMMIT_CAP);
 	return [header, ...capped.map((c) => formatCommitBlock(c, now))].join('\n\n');
+}
+
+const COMMIT_FILES_CAP = 20;
+
+function commitFilesSection(evidence: Evidence): string {
+	const blocks: string[] = [];
+	for (const c of evidence.referencedCommits) {
+		const files = evidence.commitFiles?.get(c.sha);
+		if (!files || files.length === 0) continue;
+		const capped = files.slice(0, COMMIT_FILES_CAP);
+		const lines = capped.map((f) =>
+			f.binary ? `- ${f.path} (binary)` : `- ${f.path} · +${f.additions} -${f.deletions}`,
+		);
+		if (files.length > COMMIT_FILES_CAP) {
+			lines.push(`- …and ${files.length - COMMIT_FILES_CAP} more files`);
+		}
+		blocks.push([`Files changed in \`${c.shortSha}\`:`, ...lines].join('\n'));
+	}
+	return blocks.join('\n\n');
 }
 
 function formatCommitBlock(c: CommitSummary, now: Date): string {

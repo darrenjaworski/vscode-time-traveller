@@ -47,7 +47,8 @@ Unit tests cover pure logic, but a lot of this extension lives at the `vscode` b
 - [ ] Icons differ between normal commit, merge commit, and the currently-selected baseline
 - [ ] Rename transitions show a "renamed from …" affordance on the first post-rename entry
 - [ ] Inline actions: "Compare with working tree", "Compare with previous revision"
-- [ ] Context menu: Set as baseline · Set as workspace baseline · Open file at this revision · Ask @historian about this commit · Copy SHA · Copy subject · Open on remote (GitHub/GitLab/Bitbucket repos only)
+- [ ] Context menu: Set as baseline · Set as workspace baseline · Open file at this revision · Ask @historian about this commit · Tell the story of this commit · Copy SHA · Copy subject · Open on remote (GitHub/GitLab/Bitbucket repos only)
+- [ ] "Tell the story of this commit" prefills the chat with `@historian /story <sha>` and the response is commit-focused (motivation + files touched + surrounding history), not a file-wide timeline
 - [ ] "Open on remote" builds a correct URL for GitHub, GitLab, and Bitbucket remotes
 - [ ] Refresh action at the top of the view re-runs `git log` (busts the in-memory cache)
 - [ ] "Load more…" row appears at the bottom when more commits exist; clicking it extends the list by 50
