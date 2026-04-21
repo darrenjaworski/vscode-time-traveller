@@ -67,7 +67,13 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			if (uri) stream.reference(uri);
 		}
 
-		const [model] = await vscode.lm.selectChatModels({ vendor: 'copilot', family: 'gpt-4o' });
+		const cfg = vscode.workspace.getConfiguration('timeTraveller.chat');
+		const vendor = cfg.get<string>('modelVendor') || undefined;
+		const family = cfg.get<string>('modelFamily') || undefined;
+		const selector: Record<string, string> = {};
+		if (vendor) selector.vendor = vendor;
+		if (family) selector.family = family;
+		const [model] = await vscode.lm.selectChatModels(selector);
 		if (!model) {
 			stream.markdown(
 				'No language model is available. Install GitHub Copilot Chat or another provider that exposes `vscode.lm`, then try again.',
@@ -134,6 +140,14 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 	const relPath = relativeTo(repoRoot, fileUri.fsPath);
 	if (!relPath || relPath.startsWith('..')) return undefined;
 
+	const chatCfg = vscode.workspace.getConfiguration('timeTraveller.chat');
+	const commitPatchCap = Math.max(500, chatCfg.get<number>('maxBlameEvidenceTokens') ?? 4000);
+	// Per-file /why patches get half the commit-focused budget, split across up
+	// to BLAME_PATCH_CAP commits so the section stays compact.
+	const blamePatchCap = Math.max(200, Math.round(commitPatchCap / 2));
+	const prEnabled =
+		vscode.workspace.getConfiguration('timeTraveller.pr').get<boolean>('enabled') ?? true;
+
 	const referencedSha = extractShaMention(prompt);
 	// When the prompt names a specific commit (e.g. from the history panel's
 	// "Ask @historian about this commit" action), treat the question as
@@ -170,7 +184,7 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		if (files.length > 0) {
 			commitFiles = new Map([[fullSha, files]]);
 		}
-		const trimmed = trimPatch(patch, { maxChars: 4000, maxLines: 200 });
+		const trimmed = trimPatch(patch, { maxChars: commitPatchCap, maxLines: 200 });
 		if (trimmed.text.length > 0) {
 			commitDiffs.set(fullSha, trimmed.text);
 		}
@@ -187,16 +201,12 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 			uniq.map(async (sha) => [sha, await showCommitPatch(repoRoot, sha, relPath)] as const),
 		);
 		for (const [sha, patch] of patches) {
-			const trimmed = trimPatch(patch, { maxChars: 2000, maxLines: 80 });
+			const trimmed = trimPatch(patch, { maxChars: blamePatchCap, maxLines: 80 });
 			if (trimmed.text.length > 0) commitDiffs.set(sha, trimmed.text);
 		}
 	}
 
-	const prCandidates = pickPRCandidates({
-		records,
-		blameLines,
-		referencedSha,
-	});
+	const prCandidates = prEnabled ? pickPRCandidates({ records, blameLines, referencedSha }) : [];
 	const commitPRsRaw =
 		prCandidates.length > 0
 			? await lookupPRs({

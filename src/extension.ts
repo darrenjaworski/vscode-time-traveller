@@ -98,6 +98,25 @@ export function activate(context: vscode.ExtensionContext): void {
 		vscode.commands.registerCommand('timeTraveller.openDiffWithBaseline', () =>
 			openDiffWithBaseline(baseline),
 		),
+		vscode.commands.registerCommand('timeTraveller.walkthroughs.askHistorian', async () => {
+			await vscode.commands.executeCommand('workbench.action.chat.open', {
+				query: '@historian /story',
+			});
+		}),
+		vscode.commands.registerCommand('timeTraveller.signInToGitHub', async () => {
+			try {
+				const session = await vscode.authentication.getSession('github', ['repo'], {
+					createIfNone: true,
+				});
+				if (session) {
+					vscode.window.showInformationMessage(
+						`Signed in to GitHub as ${session.account.label}. @historian will now fetch PR context.`,
+					);
+				}
+			} catch (err) {
+				vscode.window.showErrorMessage(`GitHub sign-in failed: ${(err as Error).message ?? err}`);
+			}
+		}),
 	);
 
 	context.subscriptions.push(registerHistoryView(baseline, context.workspaceState));

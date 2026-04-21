@@ -180,6 +180,16 @@
         "title": "Clear filters",
         "category": "Time Traveller",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "timeTraveller.signInToGitHub",
+        "title": "Sign in to GitHub for @historian PR context",
+        "category": "Time Traveller"
+      },
+      {
+        "command": "timeTraveller.walkthroughs.askHistorian",
+        "title": "Open @historian in the chat panel",
+        "category": "Time Traveller"
       }
     ],
     "views": {
@@ -398,9 +408,82 @@
           "type": "boolean",
           "default": true,
           "description": "Show the commit that last touched a line as a hover tooltip, but only on lines that are changed relative to the current baseline."
+        },
+        "timeTraveller.chat.modelFamily": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Preferred language-model family for @historian, passed to `vscode.lm.selectChatModels`. Leave empty to accept whatever the provider offers. Examples: `gpt-4o`, `claude-3.5-sonnet`."
+        },
+        "timeTraveller.chat.modelVendor": {
+          "type": "string",
+          "default": "copilot",
+          "description": "Preferred language-model vendor. `copilot` matches GitHub Copilot Chat; leave empty to accept any vendor."
+        },
+        "timeTraveller.chat.maxBlameEvidenceTokens": {
+          "type": "number",
+          "default": 4000,
+          "description": "Soft cap on characters of patch/diff evidence sent per @historian query (commit-focused lookups use this; per-file /why diffs scale down proportionally). Lower it when hitting model context limits."
+        },
+        "timeTraveller.pr.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fetch GitHub pull-request context for commits cited by @historian. Requires a GitHub session (silent; never prompts). Only github.com is supported; GitLab / Bitbucket / Enterprise GitHub are not."
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "timeTraveller.gettingStarted",
+        "title": "Get started with Git Time Traveller",
+        "description": "Narrate git history with @historian, pick any commit as your diff baseline, and browse file history inline.",
+        "steps": [
+          {
+            "id": "askHistorian",
+            "title": "Ask @historian why",
+            "description": "Open the chat panel and ask why the code is the way it is. Grounded in blame, log, patch excerpts, and (on GitHub) PR context.\n[Open chat with /story](command:timeTraveller.walkthroughs.askHistorian)",
+            "media": {
+              "markdown": "walkthroughs/ask-historian.md"
+            },
+            "completionEvents": [
+              "onCommand:timeTraveller.walkthroughs.askHistorian"
+            ]
+          },
+          {
+            "id": "pickBaseline",
+            "title": "Pick a diff baseline",
+            "description": "Compare the gutter against any branch, tag, stash, or commit — not just HEAD.\n[Pick a baseline…](command:timeTraveller.pickBaseline)",
+            "media": {
+              "markdown": "walkthroughs/pick-baseline.md"
+            },
+            "completionEvents": [
+              "onCommand:timeTraveller.pickBaseline"
+            ]
+          },
+          {
+            "id": "fileHistory",
+            "title": "Browse file history",
+            "description": "The File History panel shows `git log --follow` for the active file. Click any row to set it as the per-file baseline; right-click for story-of-a-commit and more.\n[Reveal the panel](command:workbench.view.scm)",
+            "media": {
+              "markdown": "walkthroughs/file-history.md"
+            },
+            "completionEvents": [
+              "onView:timeTraveller.fileHistory"
+            ]
+          },
+          {
+            "id": "githubSignIn",
+            "title": "(Optional) Sign in to GitHub for PR context",
+            "description": "On GitHub-backed repos, @historian can fold PR titles and bodies into its prompt. Silent — never prompts during a chat.\n[Sign in to GitHub](command:timeTraveller.signInToGitHub)",
+            "media": {
+              "markdown": "walkthroughs/github-signin.md"
+            },
+            "completionEvents": [
+              "onCommand:timeTraveller.signInToGitHub"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run clean && npm run compile",
