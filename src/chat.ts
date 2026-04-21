@@ -17,12 +17,20 @@ import { trimPatch } from './historian/diff';
 import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
 import { suggestFollowups } from './historian/followups';
 import { buildUserPrompt, systemPrompt, type HistorianCommand } from './historian/prompt';
+import { PRCache } from './pr/cache';
+import { lookupPRs } from './pr/service';
 import { makeTimeTravellerUri } from './quickDiff';
 
 const FILE_LOG_CAP = 60;
 /** How many blame-cited commits to pull patches for in `/why` / default mode.
  * Keep this tight — each patch costs real tokens. */
 const BLAME_PATCH_CAP = 3;
+/** Upper bound on how many commits we look up PRs for in a single query. */
+const PR_LOOKUP_CAP = 5;
+
+/** Session-scoped PR cache shared across all `@historian` invocations. Lives
+ * as long as the extension host; cleared on reload. */
+const prCache = new PRCache();
 
 /**
  * Registers the `@historian` chat participant. The participant ID **must**
@@ -184,6 +192,21 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		}
 	}
 
+	const prCandidates = pickPRCandidates({
+		records,
+		blameLines,
+		referencedSha,
+	});
+	const commitPRsRaw =
+		prCandidates.length > 0
+			? await lookupPRs({
+					repoRoot,
+					shas: prCandidates,
+					cache: prCache,
+					limit: PR_LOOKUP_CAP,
+				})
+			: new Map();
+
 	return composeEvidence({
 		relPath,
 		selection,
@@ -193,7 +216,43 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		filterDescription,
 		commitFiles,
 		commitDiffs: commitDiffs.size > 0 ? commitDiffs : undefined,
+		commitPRs: commitPRsRaw.size > 0 ? commitPRsRaw : undefined,
 	});
+}
+
+/**
+ * Pick up to `PR_LOOKUP_CAP` full SHAs that are worth a PR lookup. Referenced
+ * commits first (the user explicitly asked about them), then unique blame
+ * SHAs, then the head of the file log. Full SHAs only — the GitHub endpoint
+ * happily accepts short SHAs but `referencedCommits` keys Evidence by full
+ * SHA, and the cache does too, so we normalise here.
+ */
+export function pickPRCandidates(inputs: {
+	records: RawLogRecord[];
+	blameLines: BlameLine[] | undefined;
+	referencedSha: string | undefined;
+}): string[] {
+	const { records, blameLines, referencedSha } = inputs;
+	const out: string[] = [];
+	const seen = new Set<string>();
+	const push = (sha: string) => {
+		if (seen.has(sha) || out.length >= PR_LOOKUP_CAP) return;
+		seen.add(sha);
+		out.push(sha);
+	};
+	if (referencedSha) {
+		const match = records.find(
+			(r) =>
+				r.sha.toLowerCase() === referencedSha.toLowerCase() ||
+				r.sha.toLowerCase().startsWith(referencedSha.toLowerCase()) ||
+				r.shortSha.toLowerCase() === referencedSha.toLowerCase(),
+		);
+		if (match) push(match.sha);
+		else if (referencedSha.length === 40) push(referencedSha);
+	}
+	for (const l of blameLines ?? []) push(l.sha);
+	for (const r of records) push(r.sha);
+	return out;
 }
 
 export function resolveSelection(

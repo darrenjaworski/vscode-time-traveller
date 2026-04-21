@@ -77,6 +77,8 @@ Unit tests cover pure logic, but a lot of this extension lives at the `vscode` b
 - [ ] `/since <ref>` scopes the evidence to commits after that ref
 - [ ] `/author <pattern>` filters to matching authors
 - [ ] Cited commits render as clickable references (opens the `git-time-traveller:?ref=<sha>` URI)
+- [ ] On a GitHub-backed repo with a signed-in session, responses cite `PR #<n>` for commits that have an associated PR; answers reference the PR title/body
+- [ ] Unauthenticated use against a public GitHub remote still surfaces PR titles (rate-limited); non-GitHub remotes skip the PR lookup silently without errors
 - [ ] Follow-up suggestions appear after a response and are relevant to the command that produced it
 - [ ] No language model available → graceful error message, no unhandled rejection
 

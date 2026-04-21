@@ -52,6 +52,10 @@ export function buildUserPrompt(
 		sections.push(commitDiffsSection(evidence));
 	}
 
+	if (evidence.commitPRs && evidence.commitPRs.size > 0) {
+		sections.push(commitPRsSection(evidence));
+	}
+
 	if (evidence.blameLines && evidence.blameLines.length > 0) {
 		sections.push(blameSection(evidence, now));
 	}
@@ -185,6 +189,40 @@ function commitDiffsSection(evidence: Evidence): string {
 		return [`Diff excerpt for \`${shortFor(sha)}\`:`, '```diff', patch.trimEnd(), '```'].join('\n');
 	});
 	return blocks.join('\n\n');
+}
+
+const PR_BODY_CHAR_CAP = 1500;
+
+function commitPRsSection(evidence: Evidence): string {
+	const prs = evidence.commitPRs;
+	if (!prs) return '';
+	const shortFor = (sha: string): string => {
+		const ref = evidence.referencedCommits.find((c) => c.sha === sha);
+		if (ref) return ref.shortSha;
+		const inLog = evidence.fileCommits.find((c) => c.sha === sha);
+		return inLog?.shortSha ?? sha.slice(0, 7);
+	};
+	const seen = new Set<string>();
+	const order: string[] = [];
+	for (const c of evidence.referencedCommits) {
+		if (prs.has(c.sha)) {
+			order.push(c.sha);
+			seen.add(c.sha);
+		}
+	}
+	for (const sha of prs.keys()) {
+		if (!seen.has(sha)) order.push(sha);
+	}
+	const blocks = order.map((sha) => {
+		const pr = prs.get(sha)!;
+		const header = `PR #${pr.number} (${pr.merged ? 'merged' : pr.state}) for \`${shortFor(sha)}\` — ${pr.title}`;
+		const body = pr.body.trim();
+		if (!body) return header;
+		const trimmed =
+			body.length > PR_BODY_CHAR_CAP ? `${body.slice(0, PR_BODY_CHAR_CAP)}\n…(truncated)` : body;
+		return `${header}\n${trimmed}`;
+	});
+	return ['Pull requests:', ...blocks].join('\n\n');
 }
 
 function commitFilesSection(evidence: Evidence): string {

@@ -222,6 +222,10 @@ export const lm = {
 	selectChatModels: vi.fn(async () => [] as unknown[]),
 };
 
+export const authentication = {
+	getSession: vi.fn(async () => undefined as unknown),
+};
+
 export class LanguageModelChatMessage {
 	constructor(
 		public readonly role: 'user' | 'assistant',

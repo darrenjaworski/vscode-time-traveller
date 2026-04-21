@@ -6,6 +6,7 @@
  * raw records to `composeEvidence`.
  */
 import type { BlameLine, CommitFileChange, RawLogRecord } from '../git/cli';
+import type { PRSummary } from '../pr/github';
 
 export interface CommitSummary {
 	sha: string;
@@ -51,6 +52,10 @@ export interface Evidence {
 	 * SHA. Scoped to `relPath` when the query has a file context. Already
 	 * capped for prompt size — see `trimPatch`. */
 	commitDiffs?: Map<string, string>;
+	/** PRs associated with each cited commit (GitHub only, for now). Keyed by
+	 * full SHA. Only present for commits where the remote is GitHub and the
+	 * API returned at least one PR. */
+	commitPRs?: Map<string, PRSummary>;
 }
 
 export function recordToSummary(record: RawLogRecord): CommitSummary {
@@ -86,6 +91,7 @@ export interface EvidenceInputs {
 	filterDescription?: string;
 	commitFiles?: Map<string, CommitFileChange[]>;
 	commitDiffs?: Map<string, string>;
+	commitPRs?: Map<string, PRSummary>;
 }
 
 export function composeEvidence(inputs: EvidenceInputs): Evidence {
@@ -112,6 +118,7 @@ export function composeEvidence(inputs: EvidenceInputs): Evidence {
 		filterDescription: inputs.filterDescription,
 		commitFiles: inputs.commitFiles,
 		commitDiffs: inputs.commitDiffs,
+		commitPRs: inputs.commitPRs,
 	};
 }
 
