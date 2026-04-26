@@ -64,6 +64,18 @@ describe('buildUserPrompt', () => {
 		expect(buildUserPrompt(baseEv(), 'author', '')).toMatch(/this author/i);
 	});
 
+	it('includes current baseline line when evidence has currentBaseline', () => {
+		const ev = baseEv({ currentBaseline: 'abc1234' });
+		const prompt = buildUserPrompt(ev, 'default', '');
+		expect(prompt).toContain('Current diff baseline: `abc1234`');
+	});
+
+	it('omits baseline line when evidence has no currentBaseline', () => {
+		const ev = baseEv();
+		const prompt = buildUserPrompt(ev, 'default', '');
+		expect(prompt).not.toContain('Current diff baseline');
+	});
+
 	it('includes the user question when provided', () => {
 		const prompt = buildUserPrompt(baseEv(), 'default', 'did we drop Node 18 support here?');
 		expect(prompt).toContain('did we drop Node 18 support here?');

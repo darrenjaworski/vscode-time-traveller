@@ -40,6 +40,10 @@ export function buildUserPrompt(
 		sections.push(`File: ${evidence.relPath}`);
 	}
 
+	if (evidence.currentBaseline) {
+		sections.push(`Current diff baseline: \`${evidence.currentBaseline}\``);
+	}
+
 	if (evidence.referencedCommits.length > 0) {
 		sections.push(referencedCommitsSection(evidence.referencedCommits, now));
 	}
