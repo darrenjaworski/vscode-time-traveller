@@ -1,8 +1,5 @@
 # Git Time Traveller
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/DarrenJaworski.vscode-time-traveller?label=Marketplace&color=007acc)](https://marketplace.visualstudio.com/items?itemName=DarrenJaworski.vscode-time-traveller)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/DarrenJaworski.vscode-time-traveller)](https://marketplace.visualstudio.com/items?itemName=DarrenJaworski.vscode-time-traveller)
-
 Ask **`@historian`** _why_ a line is the way it is — grounded in real commit history, not guesswork. Set any commit as your diff baseline and watch the gutter update live. Explore the story of a file — or any single commit — without leaving VS Code.
 
 git-blame meets narrative history, in one extension.
