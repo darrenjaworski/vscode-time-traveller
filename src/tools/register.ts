@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import { GetCommitDetailsTool } from './getCommitDetails';
 import { SearchCommitsTool } from './searchCommits';
-import { logForPattern } from '../git/cli';
+import { GetCommitDiffTool } from './getCommitDiff';
+import { logForPattern, showCommitPatch } from '../git/cli';
+import { trimPatch } from '../historian/diff';
 // Future: import other tools here
 
 export function registerTools(repoRoot: string): vscode.Disposable[] {
@@ -29,6 +31,14 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 			new SearchCommitsTool({
 				repoRoot,
 				logForPattern,
+			}),
+		),
+		vscode.lm.registerTool(
+			'timeTraveller_getCommitDiff',
+			new GetCommitDiffTool({
+				repoRoot,
+				showCommitPatch,
+				trimPatch,
 			}),
 		),
 	];

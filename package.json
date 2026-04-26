@@ -461,6 +461,31 @@
             "pattern"
           ]
         }
+      },
+      {
+        "name": "timeTraveller_getCommitDiff",
+        "displayName": "Get commit diff",
+        "modelDescription": "Read the full diff for a commit, optionally filtered to a single file. Use when you need to see what changed in a specific commit.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sha": {
+              "type": "string",
+              "description": "Full or short SHA"
+            },
+            "relPath": {
+              "type": "string",
+              "description": "Relative path to filter diff to a single file (optional)"
+            },
+            "maxChars": {
+              "type": "number",
+              "description": "Maximum characters to return (default 5000)"
+            }
+          },
+          "required": [
+            "sha"
+          ]
+        }
       }
     ],
     "configuration": {
