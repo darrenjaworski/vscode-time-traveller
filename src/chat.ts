@@ -53,6 +53,7 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			prompt: request.prompt ?? '',
 			editor,
 			fileUri,
+			baseline,
 		});
 
 		if (!evidence) {
@@ -98,10 +99,6 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			stream.markdown(`\n\n_Language model error: ${(err as Error).message}_`);
 		}
 
-		// Touch baseline to satisfy unused-var lint; consumed when we extend the
-		// prompt with "current baseline" context in a later pass.
-		void baseline;
-
 		return { metadata: { command, evidence } };
 	};
 
@@ -129,6 +126,7 @@ interface GatherInputs {
 	prompt: string;
 	editor: vscode.TextEditor | undefined;
 	fileUri: vscode.Uri | undefined;
+	baseline: BaselineStore;
 }
 
 async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefined> {
@@ -227,6 +225,7 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		commitFiles,
 		commitDiffs: commitDiffs.size > 0 ? commitDiffs : undefined,
 		commitPRs: commitPRsRaw.size > 0 ? commitPRsRaw : undefined,
+		currentBaseline: inputs.baseline.get(fileUri) ?? undefined,
 	});
 }
 
