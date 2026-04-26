@@ -3,13 +3,9 @@ import { BaselineStore } from './baseline';
 import { findRepository } from './git/api';
 import { logFile, relativeTo } from './git/cli';
 import { makeTimeTravellerUri } from './quickDiff';
-import { computeStep, type StepDirection } from './stepping';
+import { computeStep, shortLabel, type StepDirection } from './stepping';
 
 const STEP_LOG_LIMIT = 500;
-
-function shortLabel(ref: string): string {
-	return /^[0-9a-f]{40}$/i.test(ref) ? ref.slice(0, 8) : ref;
-}
 
 /**
  * Move the active file's baseline by one commit along its `git log --follow`.

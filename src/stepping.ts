@@ -10,6 +10,14 @@
  */
 export type StepDirection = 'back' | 'forward';
 
+/**
+ * Shortens a 40-character SHA to its first 8 characters (short form).
+ * Non-SHA refs (branches, tags, etc.) are returned unchanged.
+ */
+export function shortLabel(ref: string): string {
+	return /^[0-9a-f]{40}$/i.test(ref) ? ref.slice(0, 8) : ref;
+}
+
 export function computeStep<T extends { sha: string }>(
 	entries: readonly T[],
 	currentSha: string | undefined,

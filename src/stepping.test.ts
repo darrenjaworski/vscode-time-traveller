@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStep } from './stepping';
+import { computeStep, shortLabel } from './stepping';
 
 const entries = [
 	{ sha: 'a1', subject: 'newest' },
@@ -43,5 +43,31 @@ describe('computeStep', () => {
 
 	it('no-ops forward when the current ref is unknown', () => {
 		expect(computeStep(entries, 'HEAD', 'forward')).toBeUndefined();
+	});
+});
+
+describe('shortLabel', () => {
+	it('truncates a 40-char lowercase SHA to first 8 chars', () => {
+		const sha = 'a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0';
+		expect(shortLabel(sha)).toBe('a1b2c3d4');
+	});
+
+	it('truncates a 40-char mixed-case SHA to first 8 chars', () => {
+		const sha = 'A1B2C3D4E5F6A7B8C9D0A1B2C3D4E5F6A7B8C9D0';
+		expect(shortLabel(sha)).toBe('A1B2C3D4');
+	});
+
+	it('leaves a short SHA unchanged', () => {
+		const sha = 'a1b2c3d';
+		expect(shortLabel(sha)).toBe('a1b2c3d');
+	});
+
+	it('leaves a branch name unchanged', () => {
+		expect(shortLabel('main')).toBe('main');
+		expect(shortLabel('feature/user-auth')).toBe('feature/user-auth');
+	});
+
+	it('leaves a tag-like string unchanged', () => {
+		expect(shortLabel('v1.2.3')).toBe('v1.2.3');
 	});
 });
