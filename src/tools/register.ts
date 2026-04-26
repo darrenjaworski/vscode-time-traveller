@@ -8,6 +8,8 @@ import { ListFileHistoryTool } from './listFileHistory';
 import {
 	logForPattern,
 	showCommitPatch,
+	showCommitMetadata,
+	showCommitStat,
 	blameRange,
 	logFile,
 	logFileSince,
@@ -26,15 +28,17 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 			new GetCommitDetailsTool({
 				repoRoot,
 				gitShow: async (sha) => {
-					// Wire to src/git/cli.ts: gitShow(repoRoot, sha)
-					// For now, return a stub that will be integrated in Task 4
+					const [meta, files] = await Promise.all([
+						showCommitMetadata(repoRoot, sha),
+						showCommitStat(repoRoot, sha),
+					]);
 					return {
-						sha,
-						subject: '',
-						body: '',
-						authorName: '',
-						authorDate: new Date(),
-						files: [],
+						sha: meta?.sha ?? sha,
+						subject: meta?.subject ?? '',
+						body: meta?.body ?? '',
+						authorName: meta?.authorName ?? '',
+						authorDate: meta ? new Date(meta.authorDate) : new Date(0),
+						files,
 					};
 				},
 			}),

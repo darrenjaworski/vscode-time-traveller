@@ -367,6 +367,25 @@ export async function showCommitPatch(
 	}
 }
 
+/**
+ * `git log -1 <sha>` with the standard log format — returns one parsed record
+ * for a specific commit's metadata (subject, body, author, date). Used by the
+ * `getCommitDetails` language model tool.
+ */
+export async function showCommitMetadata(
+	repoRoot: string,
+	sha: string,
+): Promise<RawLogRecord | undefined> {
+	const cmd = `git log -1 --pretty=format:${shellQuote(LOG_FORMAT)} ${shellQuote(sha)}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		const records = parseLog(stdout);
+		return records[0];
+	} catch {
+		return undefined;
+	}
+}
+
 export async function getMergeBase(
 	repoRoot: string,
 	ref1: string,
