@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { PRLookupInput } from '../pr/service';
 import type { PRSummary } from '../pr/github';
+import type { PRCache } from '../pr/cache';
 
 export interface FindPRsForCommitInput {
 	sha: string;
@@ -8,6 +9,7 @@ export interface FindPRsForCommitInput {
 
 export interface FindPRsForCommitDeps {
 	repoRoot: string;
+	cache: PRCache;
 	lookupPRs: (input: PRLookupInput) => Promise<Map<string, PRSummary>>;
 }
 
@@ -20,10 +22,7 @@ export class FindPRsForCommitTool implements vscode.LanguageModelTool<FindPRsFor
 		const prs = await this.deps.lookupPRs({
 			repoRoot: this.deps.repoRoot,
 			shas: [options.input.sha],
-			cache: { get: () => undefined, set: () => {} } as unknown as {
-				get: (sha: string) => unknown;
-				set: (sha: string, value: unknown) => void;
-			},
+			cache: this.deps.cache,
 		});
 
 		if (prs.size === 0) {

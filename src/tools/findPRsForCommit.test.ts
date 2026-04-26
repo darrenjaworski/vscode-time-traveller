@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { FindPRsForCommitTool } from './findPRsForCommit';
+import { PRCache } from '../pr/cache';
 import type { PRSummary } from '../pr/github';
 
 describe('FindPRsForCommitTool', () => {
@@ -16,6 +17,7 @@ describe('FindPRsForCommitTool', () => {
 
 		const tool = new FindPRsForCommitTool({
 			repoRoot: '/repo',
+			cache: new PRCache(),
 			lookupPRs: vi.fn().mockResolvedValue(new Map([['abc123', mockPRSummary]])),
 		});
 
@@ -34,6 +36,7 @@ describe('FindPRsForCommitTool', () => {
 	it('returns "No PRs found" when no PRs exist', async () => {
 		const tool = new FindPRsForCommitTool({
 			repoRoot: '/repo',
+			cache: new PRCache(),
 			lookupPRs: vi.fn().mockResolvedValue(new Map()),
 		});
 
@@ -48,9 +51,11 @@ describe('FindPRsForCommitTool', () => {
 
 	it('calls lookupPRs with correct parameters', async () => {
 		const mockLookupPRs = vi.fn().mockResolvedValue(new Map());
+		const cache = new PRCache();
 
 		const tool = new FindPRsForCommitTool({
 			repoRoot: '/repo',
+			cache,
 			lookupPRs: mockLookupPRs,
 		});
 

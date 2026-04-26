@@ -15,9 +15,11 @@ import {
 } from '../git/cli';
 import { trimPatch } from '../historian/diff';
 import { lookupPRs } from '../pr/service';
+import { PRCache } from '../pr/cache';
 // Future: import other tools here
 
 export function registerTools(repoRoot: string): vscode.Disposable[] {
+	const prCache = new PRCache();
 	return [
 		vscode.lm.registerTool(
 			'timeTraveller_getCommitDetails',
@@ -63,6 +65,7 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 			'timeTraveller_findPRsForCommit',
 			new FindPRsForCommitTool({
 				repoRoot,
+				cache: prCache,
 				lookupPRs,
 			}),
 		),
