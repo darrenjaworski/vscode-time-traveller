@@ -486,6 +486,33 @@
             "sha"
           ]
         }
+      },
+      {
+        "name": "timeTraveller_getBlame",
+        "displayName": "Get blame",
+        "modelDescription": "Show who last touched each line in a range (line number, author, date, commit subject). Use to understand the recent history of specific lines.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "relPath": {
+              "type": "string",
+              "description": "Relative file path"
+            },
+            "startLine": {
+              "type": "number",
+              "description": "Starting line number (1-based, inclusive)"
+            },
+            "endLine": {
+              "type": "number",
+              "description": "Ending line number (1-based, inclusive)"
+            }
+          },
+          "required": [
+            "relPath",
+            "startLine",
+            "endLine"
+          ]
+        }
       }
     ],
     "configuration": {

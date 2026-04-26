@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { GetCommitDetailsTool } from './getCommitDetails';
 import { SearchCommitsTool } from './searchCommits';
 import { GetCommitDiffTool } from './getCommitDiff';
-import { logForPattern, showCommitPatch } from '../git/cli';
+import { GetBlameTool } from './getBlameTool';
+import { logForPattern, showCommitPatch, blameRange } from '../git/cli';
 import { trimPatch } from '../historian/diff';
 // Future: import other tools here
 
@@ -39,6 +40,13 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 				repoRoot,
 				showCommitPatch,
 				trimPatch,
+			}),
+		),
+		vscode.lm.registerTool(
+			'timeTraveller_getBlame',
+			new GetBlameTool({
+				repoRoot,
+				blameRange,
 			}),
 		),
 	];
