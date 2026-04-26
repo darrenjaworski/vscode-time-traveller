@@ -52,6 +52,17 @@ export interface PRLookupInput {
 	limit?: number;
 }
 
+export interface PRLookupDeps {
+	resolveGitHubRemote: (repoRoot: string) => Promise<RemoteInfo | undefined>;
+	fetchPRsForCommit: (args: {
+		owner: string;
+		repo: string;
+		sha: string;
+		token?: string;
+	}) => Promise<PRSummary[] | undefined>;
+	getToken: () => Promise<string | undefined>;
+}
+
 /**
  * Resolve PR context for a batch of commits. Returns a map of SHA → PRSummary
  * for commits that (a) live in a GitHub-backed repo and (b) are associated
@@ -61,7 +72,17 @@ export interface PRLookupInput {
  * When GitHub returns multiple PRs for a commit (cherry-picked into several
  * branches), we keep the merged one if present, otherwise the first.
  */
-export async function lookupPRs(input: PRLookupInput): Promise<Map<string, PRSummary>> {
+export async function lookupPRs(
+	input: PRLookupInput,
+	deps?: Partial<PRLookupDeps>,
+): Promise<Map<string, PRSummary>> {
+	const defaultDeps: PRLookupDeps = {
+		resolveGitHubRemote: async (repoRoot) => resolveGitHubRemote(repoRoot),
+		fetchPRsForCommit: fetchPRsForCommit,
+		getToken: getGitHubToken,
+	};
+	const resolvedDeps = { ...defaultDeps, ...deps };
+
 	const out = new Map<string, PRSummary>();
 	const { repoRoot, cache, shas } = input;
 	const limit = input.limit ?? 5;
@@ -79,7 +100,7 @@ export async function lookupPRs(input: PRLookupInput): Promise<Map<string, PRSum
 	}
 	if (toFetch.length === 0) return out;
 
-	const remote = await resolveGitHubRemote(repoRoot);
+	const remote = await resolvedDeps.resolveGitHubRemote(repoRoot);
 	if (!remote) {
 		// Record nulls so we don't keep re-checking the remote; the cache is
 		// session-scoped so this is harmless.
@@ -87,11 +108,11 @@ export async function lookupPRs(input: PRLookupInput): Promise<Map<string, PRSum
 		return out;
 	}
 
-	const token = await getGitHubToken();
+	const token = await resolvedDeps.getToken();
 	const capped = toFetch.slice(0, limit);
 	await Promise.all(
 		capped.map(async (sha) => {
-			const prs = await fetchPRsForCommit({
+			const prs = await resolvedDeps.fetchPRsForCommit({
 				owner: remote.owner,
 				repo: remote.repo,
 				sha,
