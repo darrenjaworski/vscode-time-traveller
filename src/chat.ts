@@ -131,6 +131,13 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			}
 		}
 
+		if (evidence.commitFiles && evidence.commitFiles.size > 0 && folder) {
+			for (const [, files] of evidence.commitFiles) {
+				const tree: vscode.ChatResponseFileTree[] = files.map((f) => ({ name: f.path }));
+				stream.filetree(tree, folder.uri);
+			}
+		}
+
 		return { metadata: { command, evidence } };
 	};
 

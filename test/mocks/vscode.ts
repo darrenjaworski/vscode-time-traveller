@@ -255,4 +255,5 @@ export class ChatResponseStream {
 	reference = vi.fn();
 	button = vi.fn();
 	anchor = vi.fn();
+	filetree = vi.fn();
 }
