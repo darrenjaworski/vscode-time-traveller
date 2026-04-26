@@ -7,7 +7,7 @@
  */
 
 export interface RemoteInfo {
-	host: 'github' | 'gitlab' | 'bitbucket';
+	host: 'github' | 'gitlab' | 'bitbucket' | 'github-enterprise';
 	hostname: string;
 	owner: string;
 	repo: string;

@@ -5,6 +5,8 @@ import { PRCache } from './cache';
 import type { PRSummary } from './github';
 import { GitHubProvider } from './github';
 import { GitLabProvider } from './gitlab';
+import { BitbucketProvider } from './bitbucket';
+import { GitHubEnterpriseProvider } from './gheServer';
 import { pickProvider, type PRProvider } from './provider';
 
 /**
@@ -27,7 +29,12 @@ async function resolveRemote(repoRoot: string): Promise<RemoteInfo | undefined> 
 	return undefined;
 }
 
-export const DEFAULT_PROVIDERS: PRProvider[] = [new GitHubProvider(), new GitLabProvider()];
+export const DEFAULT_PROVIDERS: PRProvider[] = [
+	new GitHubProvider(),
+	new GitHubEnterpriseProvider(),
+	new GitLabProvider(),
+	new BitbucketProvider(),
+];
 
 export interface PRLookupInput {
 	repoRoot: string;

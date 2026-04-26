@@ -23,10 +23,15 @@ export interface PRSummary {
 
 export const GITHUB_API_BASE = 'https://api.github.com';
 
-export function buildCommitPRsUrl(owner: string, repo: string, sha: string): string {
+export function buildCommitPRsUrl(
+	owner: string,
+	repo: string,
+	sha: string,
+	baseUrl: string = GITHUB_API_BASE,
+): string {
 	// Path-segment-encode each piece so owners like `my org` (legal per RFC
 	// 3986) don't break the URL. SHA is already hex so encoding is a no-op.
-	return `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+	return `${baseUrl}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
 		repo,
 	)}/commits/${encodeURIComponent(sha)}/pulls`;
 }
@@ -63,6 +68,8 @@ export interface FetchPRsInput {
 	 * in. Omitted calls still work for public repos but are rate-limited at
 	 * 60/hr per IP. */
 	token?: string;
+	/** Base API URL for GitHub Enterprise instances. Defaults to https://api.github.com. */
+	baseUrl?: string;
 	/** Injected for tests. */
 	fetchImpl?: typeof fetch;
 }
@@ -74,7 +81,7 @@ export interface FetchPRsInput {
  * error, since PR context is a nice-to-have.
  */
 export async function fetchPRsForCommit(input: FetchPRsInput): Promise<PRSummary[] | undefined> {
-	const { owner, repo, sha, token } = input;
+	const { owner, repo, sha, token, baseUrl } = input;
 	const fetchImpl = input.fetchImpl ?? fetch;
 	const headers: Record<string, string> = {
 		Accept: 'application/vnd.github+json',
@@ -83,7 +90,7 @@ export async function fetchPRsForCommit(input: FetchPRsInput): Promise<PRSummary
 	};
 	if (token) headers.Authorization = `Bearer ${token}`;
 	try {
-		const response = await fetchImpl(buildCommitPRsUrl(owner, repo, sha), { headers });
+		const response = await fetchImpl(buildCommitPRsUrl(owner, repo, sha, baseUrl), { headers });
 		if (!response.ok) return undefined;
 		const json = (await response.json()) as unknown;
 		return parsePRsResponse(json);
