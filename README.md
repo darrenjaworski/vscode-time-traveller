@@ -13,7 +13,7 @@ git-blame meets narrative history, in one extension.
 
 ## `@historian` — ask why
 
-Open the chat panel, mention `@historian`, and ask in plain English. The participant shells out for `git blame`, `git log`, and `git show`, assembles structured evidence — including **trimmed patch excerpts**, **per-commit file stats**, and (for GitHub repos) **associated pull requests** — and streams a grounded explanation. Every cited commit becomes a clickable chip in the response. Follow-up questions stay grounded in prior responses, and when you've picked a diff baseline, `@historian` knows about it.
+Open the chat panel, mention `@historian`, and ask in plain English. The participant shells out for `git blame`, `git log`, and `git show`, assembles structured evidence — including **trimmed patch excerpts**, **per-commit file stats**, and **associated pull requests or merge requests** (for GitHub, GitLab, and Bitbucket repos) — and streams a grounded explanation. Every cited commit becomes a clickable chip in the response. Follow-up questions stay grounded in prior responses, and when you've picked a diff baseline, `@historian` knows about it.
 
 ```
 @historian why is this written this way?
@@ -166,7 +166,7 @@ History-panel per-row actions aren't listed in the palette — they're only mean
 | `timeTraveller.gitlabToken`          | (empty) | Personal access token for GitLab MR lookups (when GitLab Workflow extension is not installed). Treat as a secret. |
 | `timeTraveller.bitbucketAppPassword` | (empty) | Bitbucket Cloud app password for PR lookups. Treat as a secret.                                                   |
 | `timeTraveller.gheToken`             | (empty) | Personal access token for GitHub Enterprise Server PR lookups. Treat as a secret.                                 |
-| `timeTraveller.enterprise.hosts`     | `{}`    | Map of enterprise hostnames to provider types for self-hosted instances (reserved for future configuration).      |
+| `timeTraveller.enterprise.hosts`     | `{}`    | Map of self-hosted hostnames to provider types. Example: `{"git.acme.corp": "github-enterprise"}`.                |
 
 **Diff baseline & UI:**
 
@@ -182,7 +182,7 @@ History-panel per-row actions aren't listed in the palette — they're only mean
 
 ## How it works
 
-- **`@historian`** builds its prompt from structured evidence — selection excerpt, blame-per-line rollup, referenced commits, file log, **current diff baseline ref** (if set), **trimmed patch excerpts** (`git show --patch` with char/line caps), **per-commit file stats** (`git show --numstat`), and **GitHub PR title + body** for cited commits — all assembled by pure helpers in `src/historian/` and `src/pr/`. The orchestrator threads prior responses from the chat history into the message stream for multi-turn awareness, streams the model response, and emits `stream.reference(uri)` per cited commit. An in-memory PR cache keeps the GitHub API hits to a minimum (session-scoped, capped at 5 lookups per query).
+- **`@historian`** builds its prompt from structured evidence — selection excerpt, blame-per-line rollup, referenced commits, file log, **current diff baseline ref** (if set), **trimmed patch excerpts** (`git show --patch` with char/line caps), **per-commit file stats** (`git show --numstat`), and **PR/MR title + body** from GitHub, GitLab, or Bitbucket for cited commits — all assembled by pure helpers in `src/historian/` and `src/pr/`. The orchestrator threads prior responses from the chat history into the message stream for multi-turn awareness, streams the model response, and emits `stream.reference(uri)` per cited commit. A multi-provider PR cache keeps API hits to a minimum (session-scoped, capped at 5 lookups per query).
 - **Quick diff** is driven by a `QuickDiffProvider` registered against a custom `git-time-traveller:` URI scheme. Live-baseline URIs carry no query and resolve the ref against the baseline store at read time, so decorations refresh the moment the baseline changes.
 - **File history** shells `git log --follow --pretty=<custom>` and parses renames via a pure helper. Paginated with an LRU cache keyed by `(repoRoot, relPath, limit)`, invalidated per-repo on `Repository.state.onDidChange`.
 

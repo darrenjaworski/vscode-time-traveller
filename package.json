@@ -619,7 +619,7 @@
         "timeTraveller.enterprise.hosts": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Map of enterprise hostnames to provider types (currently unused; reserved for future configuration)."
+          "markdownDescription": "Map of self-hosted hostnames to provider types. Example: `{\"git.acme.corp\": \"github-enterprise\"}`. Routes PR/MR lookups to the correct provider for on-prem instances."
         }
       }
     },
