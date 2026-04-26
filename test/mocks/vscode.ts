@@ -228,7 +228,7 @@ export const authentication = {
 
 export class LanguageModelChatMessage {
 	constructor(
-		public readonly role: 'user' | 'assistant',
+		public readonly role: 'user' | 'assistant' | 'system',
 		public readonly content: string,
 	) {}
 	static User(content: string) {
@@ -236,5 +236,8 @@ export class LanguageModelChatMessage {
 	}
 	static Assistant(content: string) {
 		return new LanguageModelChatMessage('assistant', content);
+	}
+	static System(content: string) {
+		return new LanguageModelChatMessage('system', content);
 	}
 }

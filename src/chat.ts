@@ -71,7 +71,8 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 		const model = request.model;
 
 		const messages: vscode.LanguageModelChatMessage[] = [
-			vscode.LanguageModelChatMessage.User(systemPrompt()),
+			// @ts-expect-error System message role available since VS Code 1.90, types not yet updated
+			vscode.LanguageModelChatMessage.System(systemPrompt()),
 			vscode.LanguageModelChatMessage.User(
 				buildUserPrompt(evidence, command, request.prompt ?? ''),
 			),
