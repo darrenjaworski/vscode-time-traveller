@@ -405,6 +405,20 @@
         ]
       }
     ],
+    "chatVariables": [
+      {
+        "name": "timeTraveller.baseline",
+        "description": "Current diff baseline ref"
+      },
+      {
+        "name": "timeTraveller.history",
+        "description": "Recent commits on the active file"
+      },
+      {
+        "name": "timeTraveller.commit",
+        "description": "Currently selected History panel commit"
+      }
+    ],
     "configuration": {
       "title": "Git Time Traveller",
       "properties": {

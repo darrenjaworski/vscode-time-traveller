@@ -59,6 +59,21 @@ describe('extension activation', () => {
 		);
 	});
 
+	it('registers chat variable resolvers for baseline, history, and commit', () => {
+		const ctx = fakeContext();
+		activate(ctx);
+		expect(vscode.chat.registerChatVariableResolver).toHaveBeenCalledTimes(3);
+		expect(vscode.chat.registerChatVariableResolver).toHaveBeenCalledWith(
+			'timeTraveller.baseline',
+			expect.anything(),
+			expect.anything(),
+			expect.anything(),
+			expect.anything(),
+			expect.anything(),
+			expect.anything(),
+		);
+	});
+
 	it('deactivate() is a safe noop', () => {
 		expect(() => deactivate()).not.toThrow();
 	});

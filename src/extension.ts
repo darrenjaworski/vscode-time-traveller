@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { BaselineStore } from './baseline';
 import { pickBaselineRef } from './baselinePicker';
 import { registerHistorianParticipant } from './chat';
+import { registerChatVariables } from './chatVariables';
 import { registerHunkCodeLens } from './codeLens';
 import { registerHistoryView } from './history/view';
 import { registerChangeHover } from './hover';
@@ -10,6 +11,8 @@ import { TimeTravellerQuickDiff, TIME_TRAVELLER_SCHEME } from './quickDiff';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const baseline = new BaselineStore(context.workspaceState);
+
+	context.subscriptions.push(...registerChatVariables(baseline));
 
 	const quickDiff = new TimeTravellerQuickDiff(baseline);
 	context.subscriptions.push(

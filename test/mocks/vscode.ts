@@ -208,12 +208,15 @@ export const scm = {
 	})),
 };
 
+export const ChatVariableLevel = { Short: 1, Medium: 2, Full: 3 } as const;
+
 export const chat = {
 	createChatParticipant: vi.fn(() => ({
 		dispose: vi.fn(),
 		followupProvider: undefined as unknown,
 		iconPath: undefined as unknown,
 	})),
+	registerChatVariableResolver: vi.fn(() => ({ dispose: () => {} })),
 };
 
 export const env = {
