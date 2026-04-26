@@ -4,7 +4,15 @@ import { SearchCommitsTool } from './searchCommits';
 import { GetCommitDiffTool } from './getCommitDiff';
 import { GetBlameTool } from './getBlameTool';
 import { FindPRsForCommitTool } from './findPRsForCommit';
-import { logForPattern, showCommitPatch, blameRange } from '../git/cli';
+import { ListFileHistoryTool } from './listFileHistory';
+import {
+	logForPattern,
+	showCommitPatch,
+	blameRange,
+	logFile,
+	logFileSince,
+	logFileByAuthor,
+} from '../git/cli';
 import { trimPatch } from '../historian/diff';
 import { lookupPRs } from '../pr/service';
 // Future: import other tools here
@@ -56,6 +64,15 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 			new FindPRsForCommitTool({
 				repoRoot,
 				lookupPRs,
+			}),
+		),
+		vscode.lm.registerTool(
+			'timeTraveller_listFileHistory',
+			new ListFileHistoryTool({
+				repoRoot,
+				logFile,
+				logFileSince,
+				logFileByAuthor,
 			}),
 		),
 	];

@@ -530,6 +530,35 @@
             "sha"
           ]
         }
+      },
+      {
+        "name": "timeTraveller_listFileHistory",
+        "displayName": "List file history",
+        "modelDescription": "Show recent commits that touched a file, with optional filtering by author or since a given ref. Use to understand the evolution of a file.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "relPath": {
+              "type": "string",
+              "description": "Relative file path"
+            },
+            "since": {
+              "type": "string",
+              "description": "Show commits since this ref (optional, e.g., v1.0.0 or HEAD~10)"
+            },
+            "author": {
+              "type": "string",
+              "description": "Filter by author name pattern (optional, regex)"
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of commits to return (default 20)"
+            }
+          },
+          "required": [
+            "relPath"
+          ]
+        }
       }
     ],
     "configuration": {
