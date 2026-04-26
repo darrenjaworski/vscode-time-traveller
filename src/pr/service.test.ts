@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { lookupPRs, type PRLookupDeps, type PRLookupInput } from './service';
+import { lookupPRs, type PRLookupInput } from './service';
 import { PRCache } from './cache';
 import type { PRSummary } from './github';
 
@@ -117,7 +117,7 @@ describe('lookupPRs', () => {
 			limit: 2,
 		};
 
-		const result = await lookupPRs(input, {
+		await lookupPRs(input, {
 			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
 			fetchPRsForCommit,
 			getToken: vi.fn().mockResolvedValue('token123'),

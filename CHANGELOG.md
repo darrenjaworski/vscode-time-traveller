@@ -6,6 +6,11 @@ All notable changes to this extension are documented here. The format follows [K
 
 ### Added
 
+- **Action buttons** — responses end with up to three contextual buttons (Set as baseline, Open diff, Copy SHA).
+- **Clickable anchors** — selection and blame line numbers in responses are clickable.
+- **File tree for `/story <sha>`** — files-changed render as a navigable tree, not a markdown wall.
+- **Attached files** — drag a file into the chat with `#` and `@historian` will include its history as context.
+- **Chat variables** — `#timeTraveller.baseline`, `#timeTraveller.history`, `#timeTraveller.commit` work in any chat (Copilot, `@workspace`, etc.).
 - **Multi-turn conversation.** `@historian` now remembers prior responses in the chat thread, so follow-up questions like "now focus on 2023" or "show me the blame for this section" stay grounded in earlier context.
 - **Baseline context in the prompt.** When you've picked a diff baseline, `@historian` now knows what it is and can reference it in its responses — "since your baseline is main, the changes are…"
 - **Request-model picker integration.** `@historian` now respects VS Code's built-in model selection (gear icon in the chat panel) instead of requiring custom configuration. Pick your preferred model once, and the extension uses it.

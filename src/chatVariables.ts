@@ -16,6 +16,7 @@ declare module 'vscode' {
 		value: string;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-namespace
 	namespace chat {
 		function registerChatVariableResolver(
 			id: string,
