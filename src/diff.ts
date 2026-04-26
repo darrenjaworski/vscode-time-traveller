@@ -43,3 +43,14 @@ export function parseDiffHunks(diffOutput: string): Hunk[] {
 export function codeLensLineForHunk(hunk: Hunk): number {
 	return Math.max(0, hunk.newStart - 1);
 }
+
+/**
+ * Computes the zero-based selection range (startLine, endLine) for a hunk.
+ * Used when selecting hunk lines for the @historian chat participant.
+ * Returns { startLine, endLine } where endLine is inclusive.
+ */
+export function selectionRangeForHunk(hunk: Hunk): { startLine: number; endLine: number } {
+	const startLine = codeLensLineForHunk(hunk);
+	const endLine = Math.max(startLine, startLine + Math.max(hunk.newCount, 1) - 1);
+	return { startLine, endLine };
+}

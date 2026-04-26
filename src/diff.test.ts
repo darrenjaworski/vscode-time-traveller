@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { codeLensLineForHunk, parseDiffHunks, type Hunk } from './diff';
+import { codeLensLineForHunk, parseDiffHunks, selectionRangeForHunk, type Hunk } from './diff';
 
 const DIFF = `diff --git a/src/foo.ts b/src/foo.ts
 index abc1234..def5678 100644
@@ -56,5 +56,38 @@ describe('codeLensLineForHunk', () => {
 
 	it('clamps to 0 for a pure-delete at the top of the file', () => {
 		expect(codeLensLineForHunk(h(0, 0))).toBe(0);
+	});
+});
+
+describe('selectionRangeForHunk', () => {
+	const h = (newStart: number, newCount: number): Hunk => ({
+		oldStart: 0,
+		oldCount: 0,
+		newStart,
+		newCount,
+	});
+
+	it('returns endLine === startLine for pure deletion (newCount: 0)', () => {
+		const result = selectionRangeForHunk(h(5, 0));
+		expect(result.startLine).toBe(4);
+		expect(result.endLine).toBe(4);
+	});
+
+	it('returns endLine === startLine for single-line addition (newCount: 1)', () => {
+		const result = selectionRangeForHunk(h(5, 1));
+		expect(result.startLine).toBe(4);
+		expect(result.endLine).toBe(4);
+	});
+
+	it('returns endLine === startLine + 4 for five-line hunk (newCount: 5)', () => {
+		const result = selectionRangeForHunk(h(10, 5));
+		expect(result.startLine).toBe(9);
+		expect(result.endLine).toBe(13);
+	});
+
+	it('stays valid (no negative lines) when codeLensLineForHunk returns 0', () => {
+		const result = selectionRangeForHunk(h(1, 0));
+		expect(result.startLine).toBe(0);
+		expect(result.endLine).toBe(0);
 	});
 });

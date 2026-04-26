@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { BaselineStore } from './baseline';
-import { codeLensLineForHunk, parseDiffHunks, type Hunk } from './diff';
+import { codeLensLineForHunk, parseDiffHunks, selectionRangeForHunk, type Hunk } from './diff';
 import { findRepository } from './git/api';
 import { getFileDiff, relativeTo } from './git/cli';
 
@@ -90,8 +90,7 @@ export function registerHunkCodeLens(baseline: BaselineStore): vscode.Disposable
 				// Select the hunk's lines so the @historian handler's
 				// selection-scoped path picks them up — no special chat-side
 				// wiring needed.
-				const startLine = codeLensLineForHunk(hunk);
-				const endLine = Math.max(startLine, startLine + Math.max(hunk.newCount, 1) - 1);
+				const { startLine, endLine } = selectionRangeForHunk(hunk);
 				editor.selection = new vscode.Selection(startLine, 0, endLine, Number.MAX_SAFE_INTEGER);
 				editor.revealRange(editor.selection, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 				await vscode.commands.executeCommand('workbench.action.chat.open', {
