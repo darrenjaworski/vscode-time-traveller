@@ -419,6 +419,29 @@
         "description": "Currently selected History panel commit"
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "timeTraveller_getCommitDetails",
+        "displayName": "Get commit details",
+        "modelDescription": "Read a commit's metadata (subject, body, author, date) and optionally its files-changed list. Use when you need to understand what a specific commit did.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sha": {
+              "type": "string",
+              "description": "Full or short SHA"
+            },
+            "includeFiles": {
+              "type": "boolean",
+              "description": "Include the files-changed list (numstat)"
+            }
+          },
+          "required": [
+            "sha"
+          ]
+        }
+      }
+    ],
     "configuration": {
       "title": "Git Time Traveller",
       "properties": {

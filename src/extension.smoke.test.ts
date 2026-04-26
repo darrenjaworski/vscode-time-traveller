@@ -74,6 +74,19 @@ describe('extension activation', () => {
 		);
 	});
 
+	it('registers language model tools when an editor is active', () => {
+		const ctx = fakeContext();
+		(vscode.window.activeTextEditor as any) = { document: { uri: 'file:///test.ts' } };
+		(vscode.workspace.getWorkspaceFolder as any) = vi.fn(() => ({
+			uri: { fsPath: '/workspace' },
+		}));
+		activate(ctx);
+		expect(vscode.lm.registerTool).toHaveBeenCalledWith(
+			'timeTraveller_getCommitDetails',
+			expect.any(Object),
+		);
+	});
+
 	it('deactivate() is a safe noop', () => {
 		expect(() => deactivate()).not.toThrow();
 	});

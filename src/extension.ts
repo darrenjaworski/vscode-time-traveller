@@ -8,6 +8,7 @@ import { registerHistoryView } from './history/view';
 import { registerChangeHover } from './hover';
 import { openDiffWithBaseline, stepBaseline } from './multiBaseline';
 import { TimeTravellerQuickDiff, TIME_TRAVELLER_SCHEME } from './quickDiff';
+import { registerTools } from './tools/register';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const baseline = new BaselineStore(context.workspaceState);
@@ -126,6 +127,14 @@ export function activate(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(registerHunkCodeLens(baseline));
 	context.subscriptions.push(registerChangeHover(baseline));
 	context.subscriptions.push(registerHistorianParticipant(baseline));
+
+	const editor = vscode.window.activeTextEditor;
+	if (editor) {
+		const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+		if (workspaceFolder) {
+			context.subscriptions.push(...registerTools(workspaceFolder.uri.fsPath));
+		}
+	}
 }
 
 export function deactivate(): void {

@@ -228,8 +228,18 @@ export const extensions = {
 	getExtension: vi.fn(() => undefined),
 };
 
+export class LanguageModelTextPart {
+	constructor(public value: string) {}
+}
+
+export class LanguageModelToolResult {
+	constructor(public content: LanguageModelTextPart[]) {}
+}
+
 export const lm = {
 	selectChatModels: vi.fn(async () => [] as unknown[]),
+	registerTool: vi.fn((name, tool) => ({ dispose: () => {} })),
+	invokeTool: vi.fn(),
 };
 
 export const authentication = {
