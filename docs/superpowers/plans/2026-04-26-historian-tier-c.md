@@ -24,7 +24,7 @@
 - Modify: `src/pr/service.test.ts` (update mocks for the new shape)
 - Create: `src/pr/provider.test.ts`
 
-- [ ] **Step 1: Write a failing test for `pickProvider`**
+- [x] **Step 1: Write a failing test for `pickProvider`**
 
 Create `src/pr/provider.test.ts`:
 
@@ -54,7 +54,7 @@ describe('pickProvider', () => {
 });
 ```
 
-- [ ] **Step 2: Implement the `PRProvider` interface**
+- [x] **Step 2: Implement the `PRProvider` interface**
 
 Create `src/pr/provider.ts`:
 
@@ -82,13 +82,13 @@ export function pickProvider(remote: RemoteInfo, providers: PRProvider[]): PRPro
 }
 ```
 
-- [ ] **Step 3: Run tests to confirm they pass**
+- [x] **Step 3: Run tests to confirm they pass**
 
 ```bash
 npm test -- src/pr/provider.test.ts
 ```
 
-- [ ] **Step 4: Wrap existing GitHub impl as `GitHubProvider`**
+- [x] **Step 4: Wrap existing GitHub impl as `GitHubProvider`**
 
 In `src/pr/github.ts`, append the class export (keep the existing `fetchPRsForCommit` function for backward compat — `GitHubProvider` calls it):
 
@@ -127,7 +127,7 @@ export class GitHubProvider implements PRProvider {
 }
 ```
 
-- [ ] **Step 5: Refactor `service.ts` to use the registry**
+- [x] **Step 5: Refactor `service.ts` to use the registry**
 
 Update `src/pr/service.ts`:
 
@@ -154,11 +154,11 @@ const token = await provider.getToken();
 // ...for each uncached sha: provider.fetchForCommit({ remote, sha, token })
 ```
 
-- [ ] **Step 6: Update existing service tests**
+- [x] **Step 6: Update existing service tests**
 
 `src/pr/service.test.ts` already injects deps. Rewrite the dep object to use `providers: [fakeProvider]` and `resolveRemote: vi.fn(...)`. The existing 10 cases stay the same shape; only the dep names change.
 
-- [ ] **Step 7: Run all PR tests**
+- [x] **Step 7: Run all PR tests**
 
 ```bash
 npm test -- src/pr/
@@ -166,7 +166,7 @@ npm test -- src/pr/
 
 Expected: PASS for service, github, cache, provider tests.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/pr/provider.ts src/pr/provider.test.ts src/pr/github.ts src/pr/service.ts src/pr/service.test.ts
@@ -183,7 +183,7 @@ git commit -m "refactor(pr): extract PRProvider interface; wrap GitHub as a prov
 - Create: `src/pr/gitlab.test.ts`
 - Modify: `src/pr/service.ts` (add to `DEFAULT_PROVIDERS`)
 
-- [ ] **Step 1: Write failing tests for the response adapter**
+- [x] **Step 1: Write failing tests for the response adapter**
 
 Create `src/pr/gitlab.test.ts`:
 
@@ -235,7 +235,7 @@ describe('GitLabProvider.matches', () => {
 });
 ```
 
-- [ ] **Step 2: Implement `gitlab.ts`**
+- [x] **Step 2: Implement `gitlab.ts`**
 
 Create `src/pr/gitlab.ts`:
 
@@ -306,9 +306,9 @@ export class GitLabProvider implements PRProvider {
 }
 ```
 
-- [ ] **Step 3: Run tests to confirm pass**
+- [x] **Step 3: Run tests to confirm pass**
 
-- [ ] **Step 4: Add to `DEFAULT_PROVIDERS`**
+- [x] **Step 4: Add to `DEFAULT_PROVIDERS`**
 
 In `src/pr/service.ts`:
 
@@ -317,7 +317,7 @@ import { GitLabProvider } from './gitlab';
 export const DEFAULT_PROVIDERS: PRProvider[] = [new GitHubProvider(), new GitLabProvider()];
 ```
 
-- [ ] **Step 5: Add the `gitlabToken` setting in package.json**
+- [x] **Step 5: Add the `gitlabToken` setting in package.json**
 
 ```json
 "timeTraveller.gitlabToken": {
@@ -327,7 +327,7 @@ export const DEFAULT_PROVIDERS: PRProvider[] = [new GitHubProvider(), new GitLab
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/pr/gitlab.ts src/pr/gitlab.test.ts src/pr/service.ts package.json
@@ -345,7 +345,7 @@ git commit -m "feat(pr): GitLab provider with MR lookup and token fallback"
 - Modify: `src/pr/service.ts` (add to `DEFAULT_PROVIDERS`)
 - Modify: `package.json` (settings: `bitbucketAppPassword`, `gheToken`, `enterprise.hosts`)
 
-- [ ] **Step 1: Bitbucket — failing test for response adapter**
+- [x] **Step 1: Bitbucket — failing test for response adapter**
 
 Create `src/pr/bitbucket.test.ts`:
 
@@ -372,7 +372,7 @@ describe('adaptBitbucketPR', () => {
 });
 ```
 
-- [ ] **Step 2: Implement `bitbucket.ts`**
+- [x] **Step 2: Implement `bitbucket.ts`**
 
 Create `src/pr/bitbucket.ts`:
 
@@ -433,7 +433,7 @@ export class BitbucketProvider implements PRProvider {
 }
 ```
 
-- [ ] **Step 3: GHE — failing test**
+- [x] **Step 3: GHE — failing test**
 
 Create `src/pr/gheServer.test.ts`:
 
@@ -457,7 +457,7 @@ describe('GitHubEnterpriseProvider', () => {
 });
 ```
 
-- [ ] **Step 4: Implement `gheServer.ts`**
+- [x] **Step 4: Implement `gheServer.ts`**
 
 ```typescript
 import * as vscode from 'vscode';
@@ -496,7 +496,7 @@ export class GitHubEnterpriseProvider implements PRProvider {
 
 (`fetchPRsForCommit` in `github.ts` needs an optional `baseUrl` parameter — small surgical edit.)
 
-- [ ] **Step 5: Update `github.ts` to support a custom baseUrl**
+- [x] **Step 5: Update `github.ts` to support a custom baseUrl**
 
 Find the URL construction in `fetchPRsForCommit`:
 
@@ -512,7 +512,7 @@ const url = `${args.baseUrl ?? 'https://api.github.com'}/repos/${args.owner}/${a
 
 Add `baseUrl?: string` to the args type.
 
-- [ ] **Step 6: Add settings to package.json**
+- [x] **Step 6: Add settings to package.json**
 
 ```json
 "timeTraveller.bitbucketAppPassword": {
@@ -532,7 +532,7 @@ Add `baseUrl?: string` to the args type.
 }
 ```
 
-- [ ] **Step 7: Wire all three into `DEFAULT_PROVIDERS`**
+- [x] **Step 7: Wire all three into `DEFAULT_PROVIDERS`**
 
 ```typescript
 export const DEFAULT_PROVIDERS: PRProvider[] = [
@@ -543,13 +543,13 @@ export const DEFAULT_PROVIDERS: PRProvider[] = [
 ];
 ```
 
-- [ ] **Step 8: Run all tests**
+- [x] **Step 8: Run all tests**
 
 ```bash
 npm test -- src/pr/
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/pr/bitbucket.ts src/pr/bitbucket.test.ts src/pr/gheServer.ts src/pr/gheServer.test.ts src/pr/github.ts src/pr/service.ts package.json
@@ -565,7 +565,7 @@ git commit -m "feat(pr): Bitbucket and GitHub Enterprise providers"
 - Modify: `src/remote.ts`
 - Modify: `src/remote.test.ts`
 
-- [ ] **Step 1: Write failing tests in `src/remote.test.ts`**
+- [x] **Step 1: Write failing tests in `src/remote.test.ts`**
 
 ```typescript
 describe('parseRemoteUrl — multi-host', () => {
@@ -595,7 +595,7 @@ describe('parseRemoteUrl — multi-host', () => {
 });
 ```
 
-- [ ] **Step 2: Update `parseRemoteUrl` signature and logic**
+- [x] **Step 2: Update `parseRemoteUrl` signature and logic**
 
 ```typescript
 export type RemoteHost = 'github' | 'gitlab' | 'bitbucket' | 'github-enterprise' | 'unknown';
@@ -626,15 +626,15 @@ export function parseRemoteUrl(url: string, opts: ParseOptions = {}): RemoteInfo
 }
 ```
 
-- [ ] **Step 3: Pass the enterprise-host map at the call site**
+- [x] **Step 3: Pass the enterprise-host map at the call site**
 
 `resolveRemote` (or the equivalent in `pr/service.ts`) reads `vscode.workspace.getConfiguration('timeTraveller').get<Record<string, ...>>('enterprise.hosts')` and passes it through.
 
-- [ ] **Step 4: Update existing callers**
+- [x] **Step 4: Update existing callers**
 
 `src/remote.ts` is also used by the history panel's "Open on remote" command. That code path doesn't care about the new `host` values — anything other than `github`/`gitlab`/`bitbucket` already falls through to "unsupported". Verify by running the suite.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm test
@@ -642,7 +642,7 @@ npm test
 
 Expected: all pass, including new remote.test.ts cases.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/remote.ts src/remote.test.ts src/pr/service.ts
@@ -666,7 +666,7 @@ git commit -m "feat(remote): detect gitlab/bitbucket and configurable enterprise
 
 Pick `getCommitDetails` as the first tool because it has the simplest input shape and clear test surface.
 
-- [ ] **Step 1: Extend the vscode mock**
+- [x] **Step 1: Extend the vscode mock**
 
 In `test/mocks/vscode.ts`, add to the top-level `lm` namespace:
 
@@ -686,7 +686,7 @@ export class LanguageModelToolResult {
 }
 ```
 
-- [ ] **Step 2: Write a failing test**
+- [x] **Step 2: Write a failing test**
 
 Create `src/tools/getCommitDetails.test.ts`:
 
@@ -715,7 +715,7 @@ describe('GetCommitDetailsTool', () => {
 });
 ```
 
-- [ ] **Step 3: Implement `GetCommitDetailsTool`**
+- [x] **Step 3: Implement `GetCommitDetailsTool`**
 
 Create `src/tools/getCommitDetails.ts`:
 
@@ -776,13 +776,13 @@ export class GetCommitDetailsTool implements vscode.LanguageModelTool<{
 }
 ```
 
-- [ ] **Step 4: Run tests to confirm pass**
+- [x] **Step 4: Run tests to confirm pass**
 
 ```bash
 npm test -- src/tools/getCommitDetails.test.ts
 ```
 
-- [ ] **Step 5: Implement `register.ts`**
+- [x] **Step 5: Implement `register.ts`**
 
 Create `src/tools/register.ts`:
 
@@ -809,7 +809,7 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 
 (The wiring to `git/cli.ts` lives in `register.ts` so the tool class stays test-friendly.)
 
-- [ ] **Step 6: Declare in package.json**
+- [x] **Step 6: Declare in package.json**
 
 Under `contributes`, add:
 
@@ -831,7 +831,7 @@ Under `contributes`, add:
 ]
 ```
 
-- [ ] **Step 7: Wire into `extension.ts` activation**
+- [x] **Step 7: Wire into `extension.ts` activation**
 
 ```typescript
 import { registerTools } from './tools/register';
@@ -845,13 +845,13 @@ if (editor) {
 
 (Workspace-folder-scoped registration is fine for now. Multi-root is a follow-up.)
 
-- [ ] **Step 8: Verify typecheck and tests**
+- [x] **Step 8: Verify typecheck and tests**
 
 ```bash
 npm run typecheck && npm test
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/tools/ src/extension.ts package.json test/mocks/vscode.ts
@@ -864,11 +864,11 @@ git commit -m "feat(tools): scaffolding + getCommitDetails tool"
 
 For each tool, follow the same TDD pattern: failing test → impl → registration → commit. Inputs and outputs are listed in the spec. Copy the structure from Task 1.
 
-- [ ] **Step 1: `searchCommits`** — wraps `git log --grep=<pattern> --max-count=<limit>`. Test: input pattern → returns array of commit headers.
-- [ ] **Step 2: `getCommitDiff`** — wraps `showCommitPatch` + `trimPatch`. Test: respects `maxChars`.
-- [ ] **Step 3: `getBlame`** — wraps `blameRange`. Test: returns blame lines for a range.
-- [ ] **Step 4: `findPRsForCommit`** — wraps `lookupPRs` for a single SHA. Test: returns formatted PR text or "No PRs".
-- [ ] **Step 5: `listFileHistory`** — wraps `logFile` / `logFileSince` / `logFileByAuthor`. Test: respects since/author filters.
+- [x] **Step 1: `searchCommits`** — wraps `git log --grep=<pattern> --max-count=<limit>`. Test: input pattern → returns array of commit headers.
+- [x] **Step 2: `getCommitDiff`** — wraps `showCommitPatch` + `trimPatch`. Test: respects `maxChars`.
+- [x] **Step 3: `getBlame`** — wraps `blameRange`. Test: returns blame lines for a range.
+- [x] **Step 4: `findPRsForCommit`** — wraps `lookupPRs` for a single SHA. Test: returns formatted PR text or "No PRs".
+- [x] **Step 5: `listFileHistory`** — wraps `logFile` / `logFileSince` / `logFileByAuthor`. Test: respects since/author filters.
 
 Each tool gets:
 
@@ -891,7 +891,7 @@ After all five lands, run `npm test` and `npm run typecheck` and confirm green.
 - Modify: `src/historian/prompt.test.ts` (test new mode)
 - Modify: `package.json` (add `toolCalling`, `maxToolRounds` settings)
 
-- [ ] **Step 1: Add slim-prompt mode tests**
+- [x] **Step 1: Add slim-prompt mode tests**
 
 In `prompt.test.ts`:
 
@@ -909,7 +909,7 @@ it('emits a slim prompt when toolCalling is true', () => {
 });
 ```
 
-- [ ] **Step 2: Add the `options` parameter to `buildUserPrompt`**
+- [x] **Step 2: Add the `options` parameter to `buildUserPrompt`**
 
 Signature:
 
@@ -925,14 +925,14 @@ export function buildUserPrompt(
 
 When `options.toolCalling` is true, skip the diff/PR/files-changed sections and cap the file log at 5.
 
-- [ ] **Step 3: Run prompt tests; commit**
+- [x] **Step 3: Run prompt tests; commit**
 
 ```bash
 git add src/historian/prompt.ts src/historian/prompt.test.ts
 git commit -m "feat(historian): slim prompt mode for tool-calling"
 ```
 
-- [ ] **Step 4: Add settings**
+- [x] **Step 4: Add settings**
 
 ```json
 "timeTraveller.chat.toolCalling": {
@@ -949,7 +949,7 @@ git commit -m "feat(historian): slim prompt mode for tool-calling"
 }
 ```
 
-- [ ] **Step 5: Implement the tool-calling loop in `src/chat.ts`**
+- [x] **Step 5: Implement the tool-calling loop in `src/chat.ts`**
 
 Replace the simple `model.sendRequest` block with a loop. Pseudo-code (full implementation in the spec):
 
@@ -967,17 +967,17 @@ if (toolCallingEnabled) {
 
 Build the user prompt with `{ toolCalling: true }` when entering the tool path; the regular path uses the default.
 
-- [ ] **Step 6: Add a fallback test (mock model rejects with "Unsupported")**
+- [x] **Step 6: Add a fallback test (mock model rejects with "Unsupported")**
 
 A small unit test that the handler swallows `Unsupported` and falls back. Easier to do with an injectable model — for now, just verify by hand and add a smoke test stub.
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
 
 ```bash
 npm run typecheck && npm test
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/chat.ts package.json
@@ -988,13 +988,13 @@ git commit -m "feat(historian): tool-calling loop with slim prompt and fallback"
 
 ### Task 4: Final verification
 
-- [ ] **Step 1: Run kitchen-sink**
+- [x] **Step 1: Run kitchen-sink**
 
 ```bash
 npm run kitchen-sink
 ```
 
-- [ ] **Step 2: Definition of done**
+- [x] **Step 2: Definition of done**
 
 - All 6 tools registered (`timeTraveller_searchCommits`, `_getCommitDetails`, `_getCommitDiff`, `_getBlame`, `_findPRsForCommit`, `_listFileHistory`).
 - `package.json` declares all 6 under `contributes.languageModelTools`.
@@ -1005,7 +1005,7 @@ npm run kitchen-sink
 - `package.json` declares: `toolCalling`, `maxToolRounds`, `gitlabToken`, `bitbucketAppPassword`, `gheToken`, `enterprise.hosts`.
 - Smoke test asserts the new tool registrations.
 
-- [ ] **Step 3: Update CHANGELOG**
+- [x] **Step 3: Update CHANGELOG**
 
 ```markdown
 ### Added (Tier C)
@@ -1017,11 +1017,11 @@ npm run kitchen-sink
 - New settings: `timeTraveller.gitlabToken`, `timeTraveller.bitbucketAppPassword`, `timeTraveller.gheToken`, `timeTraveller.enterprise.hosts`, `timeTraveller.chat.toolCalling`, `timeTraveller.chat.maxToolRounds`.
 ```
 
-- [ ] **Step 4: Update README**
+- [x] **Step 4: Update README**
 
 Add a "Supported hosts" table and a paragraph on tool calling.
 
-- [ ] **Step 5: Push**
+- [x] **Step 5: Push**
 
 ```bash
 git push origin main
