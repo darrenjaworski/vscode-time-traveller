@@ -102,7 +102,7 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 		// prompt with "current baseline" context in a later pass.
 		void baseline;
 
-		return { metadata: { command } };
+		return { metadata: { command, evidence } };
 	};
 
 	const participant = vscode.chat.createChatParticipant('timeTraveller.historian', handler);
