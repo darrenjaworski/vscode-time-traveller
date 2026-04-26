@@ -92,6 +92,16 @@ describe('composeEvidence', () => {
 		const ev = composeEvidence({ fileRecords: [], relPath: 'src/foo.ts' });
 		expect(ev.relPath).toBe('src/foo.ts');
 	});
+
+	it('passes currentBaseline through when provided', () => {
+		const ev = composeEvidence({ fileRecords: [], currentBaseline: 'main' });
+		expect(ev.currentBaseline).toBe('main');
+	});
+
+	it('leaves currentBaseline undefined when not provided', () => {
+		const ev = composeEvidence({ fileRecords: [] });
+		expect(ev.currentBaseline).toBeUndefined();
+	});
 });
 
 describe('citedShas', () => {

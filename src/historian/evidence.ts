@@ -56,6 +56,9 @@ export interface Evidence {
 	 * full SHA. Only present for commits where the remote is GitHub and the
 	 * API returned at least one PR. */
 	commitPRs?: Map<string, PRSummary>;
+	/** The user's active diff baseline ref (e.g. "HEAD~3", "main", a full SHA).
+	 * Undefined when no baseline is set workspace-wide. */
+	currentBaseline?: string;
 }
 
 export function recordToSummary(record: RawLogRecord): CommitSummary {
@@ -92,6 +95,7 @@ export interface EvidenceInputs {
 	commitFiles?: Map<string, CommitFileChange[]>;
 	commitDiffs?: Map<string, string>;
 	commitPRs?: Map<string, PRSummary>;
+	currentBaseline?: string;
 }
 
 export function composeEvidence(inputs: EvidenceInputs): Evidence {
@@ -119,6 +123,7 @@ export function composeEvidence(inputs: EvidenceInputs): Evidence {
 		commitFiles: inputs.commitFiles,
 		commitDiffs: inputs.commitDiffs,
 		commitPRs: inputs.commitPRs,
+		currentBaseline: inputs.currentBaseline,
 	};
 }
 
