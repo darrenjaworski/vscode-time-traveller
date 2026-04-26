@@ -446,6 +446,11 @@
           "type": "boolean",
           "default": true,
           "description": "Fetch GitHub pull-request context for commits cited by @historian. Requires a GitHub session (silent; never prompts). Only github.com is supported; GitLab / Bitbucket / Enterprise GitHub are not."
+        },
+        "timeTraveller.gitlabToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Personal access token for GitLab MR lookups. Used when the GitLab Workflow extension is not installed. Treat as a secret."
         }
       }
     },
