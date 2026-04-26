@@ -26,6 +26,12 @@ export interface EvidenceSelection {
 	excerpt: string;
 }
 
+export interface AttachedFileEvidence {
+	relPath: string;
+	recentCommits: CommitSummary[];
+	blameLines?: BlameLine[];
+}
+
 export interface Evidence {
 	/** Workspace-relative path of the file the question is about. Always set
 	 * when the handler resolves a file, even when no selection is present —
@@ -59,6 +65,9 @@ export interface Evidence {
 	/** The user's active diff baseline ref (e.g. "HEAD~3", "main", a full SHA).
 	 * Undefined when no baseline is set workspace-wide. */
 	currentBaseline?: string;
+	/** Related files with recent commits and blame info, for context when
+	 * answering broader questions about a change. */
+	attachedFiles?: AttachedFileEvidence[];
 }
 
 export function recordToSummary(record: RawLogRecord): CommitSummary {
@@ -96,6 +105,7 @@ export interface EvidenceInputs {
 	commitDiffs?: Map<string, string>;
 	commitPRs?: Map<string, PRSummary>;
 	currentBaseline?: string;
+	attachedFiles?: AttachedFileEvidence[];
 }
 
 export function composeEvidence(inputs: EvidenceInputs): Evidence {
@@ -124,6 +134,7 @@ export function composeEvidence(inputs: EvidenceInputs): Evidence {
 		commitDiffs: inputs.commitDiffs,
 		commitPRs: inputs.commitPRs,
 		currentBaseline: inputs.currentBaseline,
+		attachedFiles: inputs.attachedFiles,
 	};
 }
 

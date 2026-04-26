@@ -102,6 +102,17 @@ describe('composeEvidence', () => {
 		const ev = composeEvidence({ fileRecords: [] });
 		expect(ev.currentBaseline).toBeUndefined();
 	});
+
+	it('passes attachedFiles through when provided', () => {
+		const attached = [{ relPath: 'src/util.ts', recentCommits: [] }];
+		const ev = composeEvidence({ fileRecords: [], attachedFiles: attached });
+		expect(ev.attachedFiles).toEqual(attached);
+	});
+
+	it('leaves attachedFiles undefined when not provided', () => {
+		const ev = composeEvidence({ fileRecords: [] });
+		expect(ev.attachedFiles).toBeUndefined();
+	});
 });
 
 describe('citedShas', () => {
