@@ -13,7 +13,7 @@ git-blame meets narrative history, in one extension.
 
 ## `@historian` — ask why
 
-Open the chat panel, mention `@historian`, and ask in plain English. The participant shells out for `git blame`, `git log`, and `git show`, assembles structured evidence — including **trimmed patch excerpts**, **per-commit file stats**, and (for GitHub repos) **associated pull requests** — and streams a grounded explanation. Every cited commit becomes a clickable chip in the response.
+Open the chat panel, mention `@historian`, and ask in plain English. The participant shells out for `git blame`, `git log`, and `git show`, assembles structured evidence — including **trimmed patch excerpts**, **per-commit file stats**, and (for GitHub repos) **associated pull requests** — and streams a grounded explanation. Every cited commit becomes a clickable chip in the response. Follow-up questions stay grounded in prior responses, and when you've picked a diff baseline, `@historian` knows about it.
 
 ```
 @historian why is this written this way?
@@ -21,6 +21,7 @@ Open the chat panel, mention `@historian`, and ask in plain English. The partici
 @historian /story abc1234       # commit-focused story: motivation + files + context
 @historian /since main
 @historian /author alice
+@historian now focus on 2023 commits  # multi-turn: remembers the file context
 ```
 
 **Slash commands:**
@@ -136,21 +137,21 @@ History-panel per-row actions aren't listed in the palette — they're only mean
 
 ## Configuration
 
-| Setting                                     | Default   | Description                                                                                                                     |
-| ------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `timeTraveller.defaultBaseline`             | `HEAD`    | Default git ref to diff against when no baseline is picked. Pin it to `origin/main` for a steady workspace-wide PR-review view. |
-| `timeTraveller.codeLens.enabled`            | `true`    | Show the "Ask @historian" CodeLens above each changed hunk.                                                                     |
-| `timeTraveller.hover.enabled`               | `true`    | Show the last-touching-commit hover on changed lines.                                                                           |
-| `timeTraveller.chat.modelVendor`            | `copilot` | Preferred language-model vendor for `@historian`. Leave empty to accept any vendor.                                             |
-| `timeTraveller.chat.modelFamily`            | `gpt-4o`  | Preferred model family, passed to `vscode.lm.selectChatModels`. Examples: `gpt-4o`, `claude-3.5-sonnet`. Empty = any.           |
-| `timeTraveller.chat.maxBlameEvidenceTokens` | `4000`    | Soft cap on characters of patch/diff evidence per query. Lower it when hitting model context limits.                            |
-| `timeTraveller.pr.enabled`                  | `true`    | Fetch GitHub PR context for cited commits. Disable to keep queries fully local.                                                 |
+| Setting                                     | Default | Description                                                                                                                     |
+| ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `timeTraveller.defaultBaseline`             | `HEAD`  | Default git ref to diff against when no baseline is picked. Pin it to `origin/main` for a steady workspace-wide PR-review view. |
+| `timeTraveller.codeLens.enabled`            | `true`  | Show the "Ask @historian" CodeLens above each changed hunk.                                                                     |
+| `timeTraveller.hover.enabled`               | `true`  | Show the last-touching-commit hover on changed lines.                                                                           |
+| `timeTraveller.chat.maxBlameEvidenceTokens` | `4000`  | Soft cap on characters of patch/diff evidence per query. Lower it when hitting model context limits.                            |
+| `timeTraveller.pr.enabled`                  | `true`  | Fetch GitHub PR context for cited commits. Disable to keep queries fully local.                                                 |
+
+**Language model selection:** Use VS Code's chat model picker (gear icon in the chat panel) to choose which LLM `@historian` uses. The extension works with any provider exposed via the `vscode.lm` API (GitHub Copilot, Claude for VS Code, Gemini for VS Code, etc.).
 
 ---
 
 ## How it works
 
-- **`@historian`** builds its prompt from structured evidence — selection excerpt, blame-per-line rollup, referenced commits, file log, **trimmed patch excerpts** (`git show --patch` with char/line caps), **per-commit file stats** (`git show --numstat`), and **GitHub PR title + body** for cited commits — all assembled by pure helpers in `src/historian/` and `src/pr/`. The orchestrator streams the model response and emits `stream.reference(uri)` per cited commit. An in-memory PR cache keeps the GitHub API hits to a minimum (session-scoped, capped at 5 lookups per query).
+- **`@historian`** builds its prompt from structured evidence — selection excerpt, blame-per-line rollup, referenced commits, file log, **current diff baseline ref** (if set), **trimmed patch excerpts** (`git show --patch` with char/line caps), **per-commit file stats** (`git show --numstat`), and **GitHub PR title + body** for cited commits — all assembled by pure helpers in `src/historian/` and `src/pr/`. The orchestrator threads prior responses from the chat history into the message stream for multi-turn awareness, streams the model response, and emits `stream.reference(uri)` per cited commit. An in-memory PR cache keeps the GitHub API hits to a minimum (session-scoped, capped at 5 lookups per query).
 - **Quick diff** is driven by a `QuickDiffProvider` registered against a custom `git-time-traveller:` URI scheme. Live-baseline URIs carry no query and resolve the ref against the baseline store at read time, so decorations refresh the moment the baseline changes.
 - **File history** shells `git log --follow --pretty=<custom>` and parses renames via a pure helper. Paginated with an LRU cache keyed by `(repoRoot, relPath, limit)`, invalidated per-repo on `Repository.state.onDidChange`.
 

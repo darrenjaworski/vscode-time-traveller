@@ -4,23 +4,34 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-turn conversation.** `@historian` now remembers prior responses in the chat thread, so follow-up questions like "now focus on 2023" or "show me the blame for this section" stay grounded in earlier context.
+- **Baseline context in the prompt.** When you've picked a diff baseline, `@historian` now knows what it is and can reference it in its responses — "since your baseline is main, the changes are…"
+- **Request-model picker integration.** `@historian` now respects VS Code's built-in model selection (gear icon in the chat panel) instead of requiring custom configuration. Pick your preferred model once, and the extension uses it.
+
+### Changed
+
+- Removed `timeTraveller.chat.modelVendor` and `timeTraveller.chat.modelFamily` settings — use VS Code's chat model picker instead.
+- System prompt is now sent with proper System message role for better model instruction adherence.
+- Followup suggestions now work correctly (were broken in 1.0.0).
+
 ## [1.0.0] - 2026-04-21
 
-First stable release on the VS Code Marketplace. Everything you need to ask `@historian` why a line changed, set any commit as your gutter baseline, and browse a file's history without leaving the editor — packaged with a first-run walkthrough and tunable model/PR settings.
+First stable release on the VS Code Marketplace. Everything you need to ask `@historian` why a line changed, set any commit as your gutter baseline, and browse a file's history without leaving the editor — packaged with a first-run walkthrough and PR context.
 
 ### Added
 
 - **First-run walkthrough.** A four-step "Get started with Git Time Traveller" opens automatically on install: ask `@historian`, pick a diff baseline, browse file history, and (optionally) sign in to GitHub for PR context. Each step has a markdown reference card you can reopen anytime from the Welcome page.
-- **Language-model settings.** Choose which model `@historian` asks:
-  - `timeTraveller.chat.modelVendor` (default `copilot`) — set to empty to accept any vendor.
-  - `timeTraveller.chat.modelFamily` (default `gpt-4o`) — e.g. `claude-3.5-sonnet`. Empty = any.
+- **Model selection and token budget.**
+  - Use VS Code's chat model picker to select which LLM `@historian` asks (ChatGPT, Claude, Gemini, etc.)
   - `timeTraveller.chat.maxBlameEvidenceTokens` (default `4000`) — soft cap on patch/diff evidence per query. Lower it if you hit model context limits.
 - **PR context toggle.** `timeTraveller.pr.enabled` (default `true`) — flip off to skip GitHub PR lookups for offline or privacy-sensitive work.
 - **Animated demo in the README** showing an end-to-end `@historian` query.
 
 ### Changed
 
-- README leads with the demo gif, documents the new settings, and points at the VS Code Marketplace listing.
+- README leads with the demo gif, documents the chat features, and points at the VS Code Marketplace listing.
 
 ## [0.3.0] - 2026-04-20
 
