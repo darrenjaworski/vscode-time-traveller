@@ -13,6 +13,7 @@ import {
 	type CommitFileChange,
 	type RawLogRecord,
 } from './git/cli';
+import { suggestActionButtons } from './historian/buttons';
 import { trimPatch } from './historian/diff';
 import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
 import { suggestFollowups } from './historian/followups';
@@ -103,6 +104,15 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 		} catch (err) {
 			if (err instanceof Error && err.name === 'Canceled') return {};
 			stream.markdown(`\n\n_Language model error: ${(err as Error).message}_`);
+		}
+
+		for (const btn of suggestActionButtons(evidence)) {
+			stream.button({
+				command: btn.command,
+				arguments: btn.arguments,
+				title: btn.title,
+				tooltip: btn.tooltip,
+			});
 		}
 
 		return { metadata: { command, evidence } };

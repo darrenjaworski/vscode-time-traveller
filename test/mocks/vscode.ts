@@ -241,3 +241,10 @@ export class LanguageModelChatMessage {
 		return new LanguageModelChatMessage('system', content);
 	}
 }
+
+export class ChatResponseStream {
+	markdown = vi.fn();
+	progress = vi.fn();
+	reference = vi.fn();
+	button = vi.fn();
+}
