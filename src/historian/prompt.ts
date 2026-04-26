@@ -6,7 +6,7 @@
  * Split out so the prompt shape can be tested — and reviewed — without a
  * live model or VS Code runtime.
  */
-import type { CommitSummary, Evidence } from './evidence';
+import type { AttachedFileEvidence, CommitSummary, Evidence } from './evidence';
 
 export type HistorianCommand = 'why' | 'story' | 'since' | 'author' | 'default';
 
@@ -66,6 +66,10 @@ export function buildUserPrompt(
 
 	if (evidence.fileCommits.length > 0) {
 		sections.push(fileLogSection(evidence, command, now, commitStory));
+	}
+
+	if (evidence.attachedFiles && evidence.attachedFiles.length > 0) {
+		sections.push(attachedFilesSection(evidence.attachedFiles, now));
 	}
 
 	if (evidence.filterDescription) {
@@ -308,4 +312,18 @@ export function compressRanges(numbers: number[]): string {
 	}
 	ranges.push([start, end]);
 	return ranges.map(([a, b]) => (a === b ? `${a}` : `${a}-${b}`)).join(', ');
+}
+
+function attachedFilesSection(files: AttachedFileEvidence[], now: Date): string {
+	const blocks = files.map((f) => {
+		const head = `- ${f.relPath}`;
+		const commits = f.recentCommits
+			.slice(0, 10)
+			.map(
+				(c) =>
+					`    - \`${c.shortSha}\` · ${c.authorName} · ${formatSmartTimestamp(c.authorDate, now)} — ${c.subject}`,
+			);
+		return [head, ...commits].join('\n');
+	});
+	return ['Attached files (from user):', ...blocks].join('\n');
 }

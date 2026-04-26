@@ -214,6 +214,37 @@ describe('buildUserPrompt', () => {
 		const prompt = buildUserPrompt(baseEv({ filterDescription: 'since v1.0.0' }), 'since', '');
 		expect(prompt).toContain('Filter: since v1.0.0');
 	});
+
+	it('emits Attached files section when evidence has attachedFiles', () => {
+		const ev = baseEv({
+			attachedFiles: [
+				{
+					relPath: 'src/other.ts',
+					recentCommits: [
+						{
+							sha: 'a'.repeat(40),
+							shortSha: 'aaaaaaa',
+							subject: 'tweak',
+							body: '',
+							authorName: 'A',
+							authorEmail: 'a@a',
+							authorDate: new Date('2026-01-01T00:00:00Z'),
+							isMerge: false,
+						},
+					],
+				},
+			],
+		});
+		const out = buildUserPrompt(ev, 'default', '');
+		expect(out).toContain('Attached files (from user)');
+		expect(out).toContain('src/other.ts');
+		expect(out).toContain('aaaaaaa');
+	});
+
+	it('omits Attached files section when attachedFiles is empty or undefined', () => {
+		const out = buildUserPrompt(baseEv(), 'default', '');
+		expect(out).not.toContain('Attached files');
+	});
 });
 
 describe('formatSmartTimestamp', () => {
