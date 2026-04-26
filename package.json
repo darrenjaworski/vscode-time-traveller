@@ -440,6 +440,27 @@
             "sha"
           ]
         }
+      },
+      {
+        "name": "timeTraveller_searchCommits",
+        "displayName": "Search commits",
+        "modelDescription": "Find commits matching a pattern (in subject or body). Useful for discovering commits by keyword or feature name.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Regex pattern to search subject and body"
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of results (default 10)"
+            }
+          },
+          "required": [
+            "pattern"
+          ]
+        }
       }
     ],
     "configuration": {

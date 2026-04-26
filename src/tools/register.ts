@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { GetCommitDetailsTool } from './getCommitDetails';
+import { SearchCommitsTool } from './searchCommits';
+import { logForPattern } from '../git/cli';
 // Future: import other tools here
 
 export function registerTools(repoRoot: string): vscode.Disposable[] {
@@ -20,6 +22,13 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 						files: [],
 					};
 				},
+			}),
+		),
+		vscode.lm.registerTool(
+			'timeTraveller_searchCommits',
+			new SearchCommitsTool({
+				repoRoot,
+				logForPattern,
 			}),
 		),
 	];

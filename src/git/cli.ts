@@ -61,6 +61,24 @@ export async function logRecent(repoRoot: string, maxCount: number): Promise<Raw
 }
 
 /**
+ * `git log --grep=<pattern>` — commits whose subject or body matches the pattern.
+ * The pattern is passed as-is to git, which matches it as a regex.
+ */
+export async function logForPattern(
+	repoRoot: string,
+	pattern: string,
+	maxCount: number,
+): Promise<RawLogRecord[]> {
+	const cmd = `git log --grep=${shellQuote(pattern)} --max-count=${maxCount} --pretty=format:${shellQuote(LOG_FORMAT)}`;
+	try {
+		const { stdout } = await execAsync(cmd, { cwd: repoRoot, maxBuffer: MAX_BUFFER });
+		return parseLog(stdout);
+	} catch {
+		return [];
+	}
+}
+
+/**
  * `git log <since>..HEAD -- <path>` — commits on the current branch that
  * aren't reachable from `sinceRef`. Useful for "what changed since v1.2.0".
  */
