@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { PRLookupInput } from '../pr/service';
+import type { PRSummary } from '../pr/github';
 
 export interface FindPRsForCommitInput {
 	sha: string;
@@ -7,7 +8,7 @@ export interface FindPRsForCommitInput {
 
 export interface FindPRsForCommitDeps {
 	repoRoot: string;
-	lookupPRs: (input: PRLookupInput) => Promise<Map<string, unknown>>;
+	lookupPRs: (input: PRLookupInput) => Promise<Map<string, PRSummary>>;
 }
 
 export class FindPRsForCommitTool implements vscode.LanguageModelTool<FindPRsForCommitInput> {
@@ -19,7 +20,10 @@ export class FindPRsForCommitTool implements vscode.LanguageModelTool<FindPRsFor
 		const prs = await this.deps.lookupPRs({
 			repoRoot: this.deps.repoRoot,
 			shas: [options.input.sha],
-			cache: { get: () => undefined, set: () => {} } as any,
+			cache: { get: () => undefined, set: () => {} } as unknown as {
+				get: (sha: string) => unknown;
+				set: (sha: string, value: unknown) => void;
+			},
 		});
 
 		if (prs.size === 0) {
@@ -30,8 +34,8 @@ export class FindPRsForCommitTool implements vscode.LanguageModelTool<FindPRsFor
 
 		const lines: string[] = [];
 		for (const [, pr] of prs) {
-			const state = (pr as any).merged ? 'merged' : (pr as any).state;
-			lines.push(`PR #${(pr as any).number} (${state}): ${(pr as any).title} — ${(pr as any).url}`);
+			const state = pr.merged ? 'merged' : pr.state;
+			lines.push(`PR #${pr.number} (${state}): ${pr.title} — ${pr.url}`);
 		}
 
 		return new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(lines.join('\n'))]);

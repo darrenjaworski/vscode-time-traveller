@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-import * as vscode from 'vscode';
 import { getBlame } from './getBlame';
 
 describe('getBlame', () => {
