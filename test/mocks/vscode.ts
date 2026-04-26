@@ -238,7 +238,7 @@ export class LanguageModelToolResult {
 
 export const lm = {
 	selectChatModels: vi.fn(async () => [] as unknown[]),
-	registerTool: vi.fn((name, tool) => ({ dispose: () => {} })),
+	registerTool: vi.fn((_name, _tool) => ({ dispose: () => {} })),
 	invokeTool: vi.fn(),
 };
 

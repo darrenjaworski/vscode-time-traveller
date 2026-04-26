@@ -76,10 +76,10 @@ describe('extension activation', () => {
 
 	it('registers language model tools when an editor is active', () => {
 		const ctx = fakeContext();
-		(vscode.window.activeTextEditor as any) = { document: { uri: 'file:///test.ts' } };
-		(vscode.workspace.getWorkspaceFolder as any) = vi.fn(() => ({
+		(vscode.window.activeTextEditor as unknown) = { document: { uri: 'file:///test.ts' } };
+		vi.mocked(vscode.workspace.getWorkspaceFolder).mockReturnValue({
 			uri: { fsPath: '/workspace' },
-		}));
+		} as unknown as vscode.WorkspaceFolder);
 		activate(ctx);
 		expect(vscode.lm.registerTool).toHaveBeenCalledWith(
 			'timeTraveller_getCommitDetails',

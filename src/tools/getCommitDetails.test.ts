@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import * as vscode from 'vscode';
 import { GetCommitDetailsTool } from './getCommitDetails';
 
 describe('GetCommitDetailsTool', () => {
@@ -16,9 +17,12 @@ describe('GetCommitDetailsTool', () => {
 		});
 		const result = await tool.invoke({
 			input: { sha: 'aaaa', includeFiles: true },
-			toolInvocationToken: {} as any,
-		});
-		const text = (result.content[0] as any).value;
+			toolInvocationToken: {} as unknown,
+		} as unknown as vscode.LanguageModelToolInvocationOptions<{
+			sha: string;
+			includeFiles?: boolean;
+		}>);
+		const text = (result.content[0] as vscode.LanguageModelTextPart).value;
 		expect(text).toContain('Fix bug');
 		expect(text).toContain('src/x.ts');
 	});
