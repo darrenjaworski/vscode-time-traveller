@@ -249,7 +249,7 @@ describe('buildUserPrompt', () => {
 	it('emits a slim prompt when toolCalling is true', () => {
 		const ev = baseEv({
 			fileCommits: Array.from({ length: 20 }, (_, i) =>
-				recordToSummary(rec(String(i).padStart(40, '0'))),
+				recordToSummary(rec(String(i).padStart(40, '0'), `subject ${i}`)),
 			),
 			commitDiffs: new Map([['x', 'huge diff']]),
 		});

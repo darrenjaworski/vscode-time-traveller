@@ -97,23 +97,69 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			}
 		}
 
-		const messages: vscode.LanguageModelChatMessage[] = [
-			// @ts-expect-error System message role available since VS Code 1.90, types not yet updated
-			vscode.LanguageModelChatMessage.System(systemPrompt()),
-			...historyMessages,
-			vscode.LanguageModelChatMessage.User(
-				buildUserPrompt(evidence, command, request.prompt ?? ''),
-			),
-		];
+		const chatCfg = vscode.workspace.getConfiguration('timeTraveller.chat');
+		const toolCallingEnabled = chatCfg.get<boolean>('toolCalling', true);
+		const maxToolRounds = chatCfg.get<number>('maxToolRounds', 5);
+
+		// Collect our tools if tool-calling is enabled
+		const allTools = vscode.lm.tools ?? [];
+		const toolsForChat: vscode.LanguageModelChatTool[] = toolCallingEnabled
+			? allTools
+					.filter((t) => t.name.startsWith('timeTraveller_'))
+					.map((t) => ({
+						name: t.name,
+						description: t.description,
+						inputSchema: t.inputSchema,
+					}))
+			: [];
 
 		try {
-			const response = await model.sendRequest(messages, {}, token);
-			for await (const chunk of response.text) {
-				stream.markdown(chunk);
+			if (toolsForChat.length > 0) {
+				// Tool-calling path: start with slim prompt, enter tool-calling loop
+				await runToolCallingLoop({
+					model,
+					evidence,
+					command,
+					request,
+					messages: historyMessages,
+					stream,
+					token,
+					tools: toolsForChat,
+					maxRounds: maxToolRounds,
+				});
+			} else {
+				// No tools available or tool-calling disabled: single-shot with full prompt
+				await runNonToolPath({
+					model,
+					evidence,
+					command,
+					request,
+					messages: historyMessages,
+					stream,
+					token,
+				});
 			}
 		} catch (err) {
 			if (err instanceof Error && err.name === 'Canceled') return {};
-			stream.markdown(`\n\n_Language model error: ${(err as Error).message}_`);
+			if (err instanceof Error && err.message.includes('Unsupported')) {
+				// Model doesn't support tool-calling API; fall back to non-tool path
+				try {
+					await runNonToolPath({
+						model,
+						evidence,
+						command,
+						request,
+						messages: historyMessages,
+						stream,
+						token,
+					});
+				} catch (fallbackErr) {
+					if (fallbackErr instanceof Error && fallbackErr.name === 'Canceled') return {};
+					stream.markdown(`\n\n_Language model error: ${(fallbackErr as Error).message}_`);
+				}
+			} else {
+				stream.markdown(`\n\n_Language model error: ${(err as Error).message}_`);
+			}
 		}
 
 		for (const btn of suggestActionButtons(evidence)) {
@@ -403,4 +449,105 @@ function makeCommitUri(evidence: Evidence, sha: string): vscode.Uri | undefined 
 	const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
 	if (!folder) return undefined;
 	return makeTimeTravellerUri(folder.uri.fsPath, evidence.selection.relPath, sha);
+}
+
+interface ToolCallingLoopInputs {
+	model: vscode.LanguageModelChat;
+	evidence: Evidence;
+	command: HistorianCommand;
+	request: vscode.ChatRequest;
+	messages: vscode.LanguageModelChatMessage[];
+	stream: vscode.ChatResponseStream;
+	token: vscode.CancellationToken;
+	tools: vscode.LanguageModelChatTool[];
+	maxRounds: number;
+}
+
+async function runToolCallingLoop(inputs: ToolCallingLoopInputs): Promise<void> {
+	const { model, evidence, command, request, messages, stream, token, tools, maxRounds } = inputs;
+
+	// Build slim prompt for tool-calling mode
+	const slimPrompt = buildUserPrompt(evidence, command, request.prompt ?? '', undefined, {
+		toolCalling: true,
+	});
+
+	const userMessages: vscode.LanguageModelChatMessage[] = [
+		// @ts-expect-error System message role available since VS Code 1.90
+		vscode.LanguageModelChatMessage.System(systemPrompt()),
+		...messages,
+		vscode.LanguageModelChatMessage.User(slimPrompt),
+	];
+
+	let roundCount = 0;
+	let allToolCalls: vscode.LanguageModelToolCallPart[] = [];
+
+	while (roundCount++ < maxRounds) {
+		const response = await model.sendRequest(userMessages, { tools }, token);
+
+		allToolCalls = [];
+		for await (const part of response.stream) {
+			if (part instanceof vscode.LanguageModelTextPart) {
+				stream.markdown(part.value);
+			} else if (part instanceof vscode.LanguageModelToolCallPart) {
+				allToolCalls.push(part);
+			}
+		}
+
+		// If no tool calls were requested, we're done
+		if (allToolCalls.length === 0) break;
+
+		// Process each tool call and collect results
+		for (const call of allToolCalls) {
+			const result = await vscode.lm.invokeTool(
+				call.name,
+				{
+					input: call.input,
+					toolInvocationToken: request.toolInvocationToken,
+				},
+				token,
+			);
+			// Collect text content from tool result
+			const resultText = result.content
+				.filter((p): p is vscode.LanguageModelTextPart => p instanceof vscode.LanguageModelTextPart)
+				.map((p) => p.value)
+				.join('\n');
+
+			// Add tool result message for next round
+			userMessages.push(
+				vscode.LanguageModelChatMessage.User([
+					new vscode.LanguageModelToolResultPart(call.callId, [
+						new vscode.LanguageModelTextPart(resultText),
+					]),
+				]),
+			);
+		}
+	}
+}
+
+interface NonToolPathInputs {
+	model: vscode.LanguageModelChat;
+	evidence: Evidence;
+	command: HistorianCommand;
+	request: vscode.ChatRequest;
+	messages: vscode.LanguageModelChatMessage[];
+	stream: vscode.ChatResponseStream;
+	token: vscode.CancellationToken;
+}
+
+async function runNonToolPath(inputs: NonToolPathInputs): Promise<void> {
+	const { model, evidence, command, request, messages, stream, token } = inputs;
+
+	const fullPrompt = buildUserPrompt(evidence, command, request.prompt ?? '');
+
+	const userMessages: vscode.LanguageModelChatMessage[] = [
+		// @ts-expect-error System message role available since VS Code 1.90
+		vscode.LanguageModelChatMessage.System(systemPrompt()),
+		...messages,
+		vscode.LanguageModelChatMessage.User(fullPrompt),
+	];
+
+	const response = await model.sendRequest(userMessages, {}, token);
+	for await (const chunk of response.text) {
+		stream.markdown(chunk);
+	}
 }

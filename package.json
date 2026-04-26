@@ -584,6 +584,18 @@
           "default": 4000,
           "description": "Soft cap on characters of patch/diff evidence sent per @historian query (commit-focused lookups use this; per-file /why diffs scale down proportionally). Lower it when hitting model context limits."
         },
+        "timeTraveller.chat.toolCalling": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow the model to invoke @historian tools to pull evidence on demand."
+        },
+        "timeTraveller.chat.maxToolRounds": {
+          "type": "integer",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum tool-call rounds per query."
+        },
         "timeTraveller.pr.enabled": {
           "type": "boolean",
           "default": true,
