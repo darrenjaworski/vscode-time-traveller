@@ -104,6 +104,25 @@ describe('adaptBitbucketPR', () => {
 	});
 });
 
+describe('BitbucketProvider', () => {
+	it('matches bitbucket host', async () => {
+		const { BitbucketProvider } = await import('./bitbucket');
+		const provider = new BitbucketProvider();
+		expect(provider.matches({ host: 'bitbucket', owner: 'team', repo: 'repo' })).toBe(true);
+	});
+
+	it('does not match other hosts', async () => {
+		const { BitbucketProvider } = await import('./bitbucket');
+		const provider = new BitbucketProvider();
+		expect(provider.matches({ host: 'github', owner: 'o', repo: 'r' })).toBe(false);
+	});
+
+	it('has correct provider id', async () => {
+		const { BitbucketProvider } = await import('./bitbucket');
+		expect(new BitbucketProvider().id).toBe('bitbucket');
+	});
+});
+
 describe('parsePRsResponse', () => {
 	it('returns [] for non-envelope input', () => {
 		expect(parsePRsResponse(null)).toEqual([]);

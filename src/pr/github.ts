@@ -7,9 +7,7 @@
  * an array of PRs associated with the commit — typically 0 or 1, occasionally
  * more (e.g. a commit cherry-picked into multiple branches).
  *
- * Enterprise GitHub is out of scope for v1; the hostname check in
- * `src/remote.ts` only recognises `github.com`. If/when we support GHE, this
- * module will also need a configurable `baseUrl`.
+ * Enterprise GitHub is supported via GitHubEnterpriseProvider; baseUrl can be customized for enterprise instances.
  */
 
 export interface PRSummary {
