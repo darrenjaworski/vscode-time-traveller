@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import type { BaselineStore } from './baseline';
 import { findRepository } from './git/api';
 import {
@@ -14,6 +15,7 @@ import {
 	type RawLogRecord,
 } from './git/cli';
 import { suggestActionButtons } from './historian/buttons';
+import { suggestAnchors } from './historian/anchors';
 import { trimPatch } from './historian/diff';
 import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
 import { suggestFollowups } from './historian/followups';
@@ -113,6 +115,20 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 				title: btn.title,
 				tooltip: btn.tooltip,
 			});
+		}
+
+		// Emit anchors for selection and blame lines
+		const editorForAnchors = vscode.window.activeTextEditor;
+		const folder = editorForAnchors
+			? vscode.workspace.getWorkspaceFolder(editorForAnchors.document.uri)
+			: undefined;
+
+		if (folder) {
+			for (const a of suggestAnchors(evidence)) {
+				const uri = vscode.Uri.file(path.join(folder.uri.fsPath, a.relPath));
+				const pos = new vscode.Position(Math.max(0, a.line - 1), 0);
+				stream.anchor(new vscode.Location(uri, pos), a.label);
+			}
 		}
 
 		return { metadata: { command, evidence } };

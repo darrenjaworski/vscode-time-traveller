@@ -123,6 +123,13 @@ export class Position {
 	) {}
 }
 
+export class Location {
+	constructor(
+		public readonly uri: UriLike,
+		public readonly range: Position | Range,
+	) {}
+}
+
 export class Hover {
 	constructor(
 		public readonly contents: unknown,
@@ -247,4 +254,5 @@ export class ChatResponseStream {
 	progress = vi.fn();
 	reference = vi.fn();
 	button = vi.fn();
+	anchor = vi.fn();
 }
