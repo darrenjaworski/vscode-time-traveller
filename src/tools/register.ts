@@ -3,8 +3,10 @@ import { GetCommitDetailsTool } from './getCommitDetails';
 import { SearchCommitsTool } from './searchCommits';
 import { GetCommitDiffTool } from './getCommitDiff';
 import { GetBlameTool } from './getBlameTool';
+import { FindPRsForCommitTool } from './findPRsForCommit';
 import { logForPattern, showCommitPatch, blameRange } from '../git/cli';
 import { trimPatch } from '../historian/diff';
+import { lookupPRs } from '../pr/service';
 // Future: import other tools here
 
 export function registerTools(repoRoot: string): vscode.Disposable[] {
@@ -47,6 +49,13 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
 			new GetBlameTool({
 				repoRoot,
 				blameRange,
+			}),
+		),
+		vscode.lm.registerTool(
+			'timeTraveller_findPRsForCommit',
+			new FindPRsForCommitTool({
+				repoRoot,
+				lookupPRs,
 			}),
 		),
 	];

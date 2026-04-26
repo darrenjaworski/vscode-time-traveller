@@ -513,6 +513,23 @@
             "endLine"
           ]
         }
+      },
+      {
+        "name": "timeTraveller_findPRsForCommit",
+        "displayName": "Find PRs for commit",
+        "modelDescription": "Look up pull requests or merge requests associated with a commit (GitHub, GitLab, Bitbucket supported). Use to understand which PR introduced a change.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sha": {
+              "type": "string",
+              "description": "Full or short SHA"
+            }
+          },
+          "required": [
+            "sha"
+          ]
+        }
       }
     ],
     "configuration": {
