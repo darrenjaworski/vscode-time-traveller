@@ -41,7 +41,7 @@ const prCache = new PRCache();
  * references + follow-up suggestions.
  */
 export function registerHistorianParticipant(baseline: BaselineStore): vscode.Disposable {
-	const handler: vscode.ChatRequestHandler = async (request, _ctx, stream, token) => {
+	const handler: vscode.ChatRequestHandler = async (request, ctx, stream, token) => {
 		const command = normalizeCommand(request.command);
 		const editor = vscode.window.activeTextEditor;
 		const fileUri = editor?.document.uri.scheme === 'file' ? editor.document.uri : undefined;
@@ -70,9 +70,26 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 
 		const model = request.model;
 
+		const historyMessages: vscode.LanguageModelChatMessage[] = [];
+		for (const turn of ctx.history) {
+			if (turn instanceof vscode.ChatResponseTurn) {
+				const text = turn.response
+					.filter(
+						(p): p is vscode.ChatResponseMarkdownPart =>
+							p instanceof vscode.ChatResponseMarkdownPart,
+					)
+					.map((p) => p.value.value)
+					.join('');
+				if (text.trim()) {
+					historyMessages.push(vscode.LanguageModelChatMessage.Assistant(text));
+				}
+			}
+		}
+
 		const messages: vscode.LanguageModelChatMessage[] = [
 			// @ts-expect-error System message role available since VS Code 1.90, types not yet updated
 			vscode.LanguageModelChatMessage.System(systemPrompt()),
+			...historyMessages,
 			vscode.LanguageModelChatMessage.User(
 				buildUserPrompt(evidence, command, request.prompt ?? ''),
 			),
