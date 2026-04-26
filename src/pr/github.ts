@@ -91,3 +91,36 @@ export async function fetchPRsForCommit(input: FetchPRsInput): Promise<PRSummary
 		return undefined;
 	}
 }
+
+import * as vscode from 'vscode';
+import type { PRProvider } from './provider';
+import type { RemoteInfo } from '../remote';
+
+export class GitHubProvider implements PRProvider {
+	readonly id = 'github' as const;
+
+	matches(remote: RemoteInfo): boolean {
+		return remote.host === 'github';
+	}
+
+	async fetchForCommit(args: { remote: RemoteInfo; sha: string; token?: string }) {
+		return fetchPRsForCommit({
+			owner: args.remote.owner,
+			repo: args.remote.repo,
+			sha: args.sha,
+			token: args.token,
+		});
+	}
+
+	async getToken() {
+		try {
+			const session = await vscode.authentication.getSession('github', ['repo'], {
+				createIfNone: false,
+				silent: true,
+			});
+			return session?.accessToken;
+		} catch {
+			return undefined;
+		}
+	}
+}

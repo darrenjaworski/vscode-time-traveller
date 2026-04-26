@@ -1,0 +1,21 @@
+
+> vscode-time-traveller@1.0.0 kitchen-sink
+> npm run format:check && npm run lint && npm run typecheck && npm test && npm run compile && npm run package
+
+
+> vscode-time-traveller@1.0.0 format:check
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> vscode-time-traveller@1.0.0 lint
+> eslint .
+
+
+> vscode-time-traveller@1.0.0 typecheck
+> tsc --noEmit -p ./ && tsc --noEmit -p ./tsconfig.test.json
+
+src/chatVariables.ts(66,38): error TS2339: Property 'registerChatVariableResolver' does not exist on type 'typeof chat'.
+src/chatVariables.ts(82,37): error TS2339: Property 'registerChatVariableResolver' does not exist on type 'typeof chat'.
+src/chatVariables.ts(127,36): error TS2339: Property 'registerChatVariableResolver' does not exist on type 'typeof chat'.

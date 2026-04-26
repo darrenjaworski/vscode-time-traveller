@@ -2,14 +2,16 @@ import * as vscode from 'vscode';
 import { findRepository } from '../git/api';
 import { parseRemoteUrl, type RemoteInfo } from '../remote';
 import { PRCache } from './cache';
-import { fetchPRsForCommit, type PRSummary } from './github';
+import type { PRSummary } from './github';
+import { GitHubProvider } from './github';
+import { pickProvider, type PRProvider } from './provider';
 
 /**
  * Resolve the first GitHub remote for a repo root. Reaches through `unknown`
  * for the remotes field — the minimal Git API type in `src/git/api.ts` doesn't
  * declare it, matching the pattern used in `src/history/view.ts`.
  */
-async function resolveGitHubRemote(repoRoot: string): Promise<RemoteInfo | undefined> {
+async function resolveRemote(repoRoot: string): Promise<RemoteInfo | undefined> {
 	const repo = await findRepository(vscode.Uri.file(repoRoot));
 	const remotes = (
 		repo as unknown as { state?: { remotes?: Array<{ fetchUrl?: string; pushUrl?: string }> } }
@@ -19,28 +21,12 @@ async function resolveGitHubRemote(repoRoot: string): Promise<RemoteInfo | undef
 		const url = remote.fetchUrl ?? remote.pushUrl;
 		if (!url) continue;
 		const info = parseRemoteUrl(url);
-		if (info?.host === 'github') return info;
+		if (info) return info;
 	}
 	return undefined;
 }
 
-/**
- * Try to get the user's GitHub session without triggering a sign-in prompt —
- * `createIfNone: false` keeps the chat experience silent for users who haven't
- * opted in. Unauthenticated API calls still work against public repos, just
- * rate-limited at 60/hr/IP.
- */
-async function getGitHubToken(): Promise<string | undefined> {
-	try {
-		const session = await vscode.authentication.getSession('github', ['repo'], {
-			createIfNone: false,
-			silent: true,
-		});
-		return session?.accessToken;
-	} catch {
-		return undefined;
-	}
-}
+export const DEFAULT_PROVIDERS: PRProvider[] = [new GitHubProvider()];
 
 export interface PRLookupInput {
 	repoRoot: string;
@@ -53,23 +39,17 @@ export interface PRLookupInput {
 }
 
 export interface PRLookupDeps {
-	resolveGitHubRemote: (repoRoot: string) => Promise<RemoteInfo | undefined>;
-	fetchPRsForCommit: (args: {
-		owner: string;
-		repo: string;
-		sha: string;
-		token?: string;
-	}) => Promise<PRSummary[] | undefined>;
-	getToken: () => Promise<string | undefined>;
+	resolveRemote: (repoRoot: string) => Promise<RemoteInfo | undefined>;
+	providers: PRProvider[];
 }
 
 /**
  * Resolve PR context for a batch of commits. Returns a map of SHA → PRSummary
- * for commits that (a) live in a GitHub-backed repo and (b) are associated
+ * for commits that (a) live in a supported-provider remote and (b) are associated
  * with at least one PR. Silently degrades when auth is missing, the remote
- * isn't GitHub, or the network is down.
+ * isn't supported, or the network is down.
  *
- * When GitHub returns multiple PRs for a commit (cherry-picked into several
+ * When a provider returns multiple PRs for a commit (cherry-picked into several
  * branches), we keep the merged one if present, otherwise the first.
  */
 export async function lookupPRs(
@@ -77,9 +57,8 @@ export async function lookupPRs(
 	deps?: Partial<PRLookupDeps>,
 ): Promise<Map<string, PRSummary>> {
 	const defaultDeps: PRLookupDeps = {
-		resolveGitHubRemote: async (repoRoot) => resolveGitHubRemote(repoRoot),
-		fetchPRsForCommit: fetchPRsForCommit,
-		getToken: getGitHubToken,
+		resolveRemote: async (repoRoot) => resolveRemote(repoRoot),
+		providers: DEFAULT_PROVIDERS,
 	};
 	const resolvedDeps = { ...defaultDeps, ...deps };
 
@@ -100,7 +79,7 @@ export async function lookupPRs(
 	}
 	if (toFetch.length === 0) return out;
 
-	const remote = await resolvedDeps.resolveGitHubRemote(repoRoot);
+	const remote = await resolvedDeps.resolveRemote(repoRoot);
 	if (!remote) {
 		// Record nulls so we don't keep re-checking the remote; the cache is
 		// session-scoped so this is harmless.
@@ -108,16 +87,18 @@ export async function lookupPRs(
 		return out;
 	}
 
-	const token = await resolvedDeps.getToken();
+	const provider = pickProvider(remote, resolvedDeps.providers);
+	if (!provider) {
+		// No matching provider for this remote type
+		for (const sha of toFetch) cache.set(sha, null);
+		return out;
+	}
+
+	const token = await provider.getToken();
 	const capped = toFetch.slice(0, limit);
 	await Promise.all(
 		capped.map(async (sha) => {
-			const prs = await resolvedDeps.fetchPRsForCommit({
-				owner: remote.owner,
-				repo: remote.repo,
-				sha,
-				token,
-			});
+			const prs = await provider.fetchForCommit({ remote, sha, token });
 			if (prs === undefined) {
 				// Network failure — don't poison the cache; let future runs retry.
 				return;

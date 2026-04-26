@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { lookupPRs, type PRLookupInput } from './service';
 import { PRCache } from './cache';
 import type { PRSummary } from './github';
+import type { PRProvider } from './provider';
+import type { RemoteInfo } from '../remote';
 
 function pr(number: number, merged: boolean = false): PRSummary {
 	return {
@@ -14,12 +16,27 @@ function pr(number: number, merged: boolean = false): PRSummary {
 	};
 }
 
+interface FakeProviderResult {
+	provider: PRProvider;
+	vi: { fetch: ReturnType<typeof vi.fn> };
+}
+
+function fakeProvider(fetchResult: PRSummary[] | undefined | null = null): FakeProviderResult {
+	const vi_fetch = vi.fn().mockResolvedValue(fetchResult ?? undefined);
+	const provider: PRProvider = {
+		id: 'github',
+		matches: () => true,
+		fetchForCommit: vi_fetch,
+		getToken: vi.fn().mockResolvedValue(undefined),
+	};
+	return { provider, vi: { fetch: vi_fetch } };
+}
+
 describe('lookupPRs', () => {
 	it('case 1: empty shas → empty map, zero dep calls', async () => {
 		const cache = new PRCache();
-		const resolveGitHubRemote = vi.fn();
-		const fetchPRsForCommit = vi.fn();
-		const getToken = vi.fn();
+		const resolveRemote = vi.fn();
+		const { provider } = fakeProvider();
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -28,15 +45,12 @@ describe('lookupPRs', () => {
 		};
 
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote,
-			fetchPRsForCommit,
-			getToken,
+			resolveRemote,
+			providers: [provider],
 		});
 
 		expect(result.size).toBe(0);
-		expect(resolveGitHubRemote).not.toHaveBeenCalled();
-		expect(fetchPRsForCommit).not.toHaveBeenCalled();
-		expect(getToken).not.toHaveBeenCalled();
+		expect(resolveRemote).not.toHaveBeenCalled();
 	});
 
 	it('case 2: all cache hits with PR objects → returned, no fetch calls', async () => {
@@ -52,10 +66,11 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const { provider } = fakeProvider();
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn(),
-			fetchPRsForCommit: vi.fn(),
-			getToken: vi.fn(),
+			resolveRemote: vi.fn(),
+			providers: [provider],
 		});
 
 		expect(result.get('sha1')).toEqual(pr1);
@@ -74,10 +89,11 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const { provider } = fakeProvider();
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn(),
-			fetchPRsForCommit: vi.fn(),
-			getToken: vi.fn(),
+			resolveRemote: vi.fn(),
+			providers: [provider],
 		});
 
 		expect(result.size).toBe(0);
@@ -85,7 +101,7 @@ describe('lookupPRs', () => {
 
 	it('case 4: non-GitHub remote → no fetches, nulls cached for uncached shas', async () => {
 		const cache = new PRCache();
-		const fetchPRsForCommit = vi.fn();
+		const { provider, vi: viMock } = fakeProvider();
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -94,13 +110,12 @@ describe('lookupPRs', () => {
 		};
 
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue(undefined),
-			fetchPRsForCommit,
-			getToken: vi.fn(),
+			resolveRemote: vi.fn().mockResolvedValue(undefined),
+			providers: [provider],
 		});
 
 		expect(result.size).toBe(0);
-		expect(fetchPRsForCommit).not.toHaveBeenCalled();
+		expect(viMock.fetch).not.toHaveBeenCalled();
 		// Verify cache was populated with nulls
 		expect(cache.get('sha1')).toBe(null);
 		expect(cache.get('sha2')).toBe(null);
@@ -108,7 +123,7 @@ describe('lookupPRs', () => {
 
 	it('case 5: limit cap → only first N shas fetched, rest neither fetched nor cached', async () => {
 		const cache = new PRCache();
-		const fetchPRsForCommit = vi.fn().mockResolvedValue([pr(100, false)]);
+		const { provider, vi: viMock } = fakeProvider([pr(100, false)]);
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -117,14 +132,15 @@ describe('lookupPRs', () => {
 			limit: 2,
 		};
 
+		const remote: RemoteInfo = { host: 'github', hostname: 'github.com', owner: 'o', repo: 'r' };
+
 		await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
-			fetchPRsForCommit,
-			getToken: vi.fn().mockResolvedValue('token123'),
+			resolveRemote: vi.fn().mockResolvedValue(remote),
+			providers: [provider],
 		});
 
 		// First 2 shas should be fetched
-		expect(fetchPRsForCommit).toHaveBeenCalledTimes(2);
+		expect(viMock.fetch).toHaveBeenCalledTimes(2);
 		// Remaining 2 should not be cached
 		expect(cache.get('sha3')).toBeUndefined();
 		expect(cache.get('sha4')).toBeUndefined();
@@ -133,10 +149,17 @@ describe('lookupPRs', () => {
 	it('case 6: network failure → cache untouched for failed sha, other shas still processed', async () => {
 		const cache = new PRCache();
 		const pr200 = pr(200, false);
-		const fetchPRsForCommit = vi
+		const fetchMock = vi
 			.fn()
 			.mockResolvedValueOnce(undefined) // sha1 fails
 			.mockResolvedValueOnce([pr200]); // sha2 succeeds
+
+		const provider: PRProvider = {
+			id: 'github',
+			matches: () => true,
+			fetchForCommit: fetchMock,
+			getToken: vi.fn().mockResolvedValue('token123'),
+		};
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -144,10 +167,11 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const remote: RemoteInfo = { host: 'github', hostname: 'github.com', owner: 'o', repo: 'r' };
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
-			fetchPRsForCommit,
-			getToken: vi.fn().mockResolvedValue('token123'),
+			resolveRemote: vi.fn().mockResolvedValue(remote),
+			providers: [provider],
 		});
 
 		// sha1 should not be in cache (network failure, don't poison)
@@ -158,7 +182,7 @@ describe('lookupPRs', () => {
 
 	it('case 7: empty PR list → cache set to null for that sha', async () => {
 		const cache = new PRCache();
-		const fetchPRsForCommit = vi.fn().mockResolvedValue([]); // Empty list
+		const { provider } = fakeProvider([]);
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -166,10 +190,11 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const remote: RemoteInfo = { host: 'github', hostname: 'github.com', owner: 'o', repo: 'r' };
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
-			fetchPRsForCommit,
-			getToken: vi.fn().mockResolvedValue('token123'),
+			resolveRemote: vi.fn().mockResolvedValue(remote),
+			providers: [provider],
 		});
 
 		expect(result.size).toBe(0);
@@ -180,7 +205,7 @@ describe('lookupPRs', () => {
 		const cache = new PRCache();
 		const unmergedPR = pr(100, false);
 		const mergedPR = pr(101, true);
-		const fetchPRsForCommit = vi.fn().mockResolvedValue([unmergedPR, mergedPR]);
+		const { provider } = fakeProvider([unmergedPR, mergedPR]);
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -188,10 +213,11 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const remote: RemoteInfo = { host: 'github', hostname: 'github.com', owner: 'o', repo: 'r' };
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
-			fetchPRsForCommit,
-			getToken: vi.fn().mockResolvedValue('token123'),
+			resolveRemote: vi.fn().mockResolvedValue(remote),
+			providers: [provider],
 		});
 
 		expect(result.get('sha1')).toEqual(mergedPR);
@@ -201,7 +227,7 @@ describe('lookupPRs', () => {
 		const cache = new PRCache();
 		const pr1 = pr(100, false);
 		const pr2 = pr(101, false);
-		const fetchPRsForCommit = vi.fn().mockResolvedValue([pr1, pr2]);
+		const { provider } = fakeProvider([pr1, pr2]);
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -209,10 +235,11 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const remote: RemoteInfo = { host: 'github', hostname: 'github.com', owner: 'o', repo: 'r' };
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
-			fetchPRsForCommit,
-			getToken: vi.fn().mockResolvedValue('token123'),
+			resolveRemote: vi.fn().mockResolvedValue(remote),
+			providers: [provider],
 		});
 
 		expect(result.get('sha1')).toEqual(pr1);
@@ -224,7 +251,13 @@ describe('lookupPRs', () => {
 		const fetchedPR = pr(2, false);
 		cache.set('sha1', cachedPR);
 
-		const fetchPRsForCommit = vi.fn().mockResolvedValue([fetchedPR]);
+		const fetchMock = vi.fn().mockResolvedValue([fetchedPR]);
+		const provider: PRProvider = {
+			id: 'github',
+			matches: () => true,
+			fetchForCommit: fetchMock,
+			getToken: vi.fn().mockResolvedValue('token123'),
+		};
 
 		const input: PRLookupInput = {
 			repoRoot: '/repo',
@@ -232,15 +265,16 @@ describe('lookupPRs', () => {
 			cache,
 		};
 
+		const remote: RemoteInfo = { host: 'github', hostname: 'github.com', owner: 'o', repo: 'r' };
+
 		const result = await lookupPRs(input, {
-			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
-			fetchPRsForCommit,
-			getToken: vi.fn().mockResolvedValue('token123'),
+			resolveRemote: vi.fn().mockResolvedValue(remote),
+			providers: [provider],
 		});
 
 		// Only sha2 should have been fetched (sha1 was cached)
-		expect(fetchPRsForCommit).toHaveBeenCalledTimes(1);
-		expect(fetchPRsForCommit).toHaveBeenCalledWith(expect.objectContaining({ sha: 'sha2' }));
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(fetchMock).toHaveBeenCalledWith(expect.objectContaining({ sha: 'sha2' }));
 		expect(result.get('sha1')).toEqual(cachedPR);
 		expect(result.get('sha2')).toEqual(fetchedPR);
 	});
