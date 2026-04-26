@@ -17,7 +17,14 @@ import {
 import { suggestActionButtons } from './historian/buttons';
 import { suggestAnchors } from './historian/anchors';
 import { trimPatch } from './historian/diff';
-import { citedShas, composeEvidence, extractShaMention, type Evidence } from './historian/evidence';
+import {
+	citedShas,
+	composeEvidence,
+	extractShaMention,
+	recordToSummary,
+	type AttachedFileEvidence,
+	type Evidence,
+} from './historian/evidence';
 import { suggestFollowups } from './historian/followups';
 import { buildUserPrompt, systemPrompt, type HistorianCommand } from './historian/prompt';
 import { PRCache } from './pr/cache';
@@ -57,6 +64,7 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			editor,
 			fileUri,
 			baseline,
+			references: request.references ?? [],
 		});
 
 		if (!evidence) {
@@ -166,6 +174,7 @@ interface GatherInputs {
 	editor: vscode.TextEditor | undefined;
 	fileUri: vscode.Uri | undefined;
 	baseline: BaselineStore;
+	references: readonly vscode.ChatPromptReference[];
 }
 
 async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefined> {
@@ -254,6 +263,18 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 				})
 			: new Map();
 
+	const attachedFiles: AttachedFileEvidence[] = [];
+	for (const ref of inputs.references) {
+		const value = ref.value;
+		if (value instanceof vscode.Uri) {
+			if (value.scheme !== 'file') continue;
+			const refRel = relativeTo(repoRoot, value.fsPath);
+			if (!refRel || refRel.startsWith('..') || refRel === relPath) continue;
+			const refRecords = await logFile(repoRoot, refRel, 10);
+			attachedFiles.push({ relPath: refRel, recentCommits: refRecords.map(recordToSummary) });
+		}
+	}
+
 	return composeEvidence({
 		relPath,
 		selection,
@@ -265,6 +286,7 @@ async function gatherEvidence(inputs: GatherInputs): Promise<Evidence | undefine
 		commitDiffs: commitDiffs.size > 0 ? commitDiffs : undefined,
 		commitPRs: commitPRsRaw.size > 0 ? commitPRsRaw : undefined,
 		currentBaseline: inputs.baseline.get(fileUri) ?? undefined,
+		attachedFiles: attachedFiles.length > 0 ? attachedFiles : undefined,
 	});
 }
 
