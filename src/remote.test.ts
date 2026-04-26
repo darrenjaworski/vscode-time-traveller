@@ -61,12 +61,67 @@ describe('parseRemoteUrl — unsupported input', () => {
 		expect(parseRemoteUrl('   ')).toBeUndefined();
 	});
 
-	it('returns undefined for unknown hosts', () => {
-		expect(parseRemoteUrl('git@example.com:owner/repo.git')).toBeUndefined();
+	it('returns unknown host info for unrecognized cloud hosts', () => {
+		expect(parseRemoteUrl('git@example.com:owner/repo.git')).toMatchObject({
+			host: 'unknown',
+			owner: 'owner',
+			repo: 'repo',
+		});
 	});
 
 	it('returns undefined when the path has no owner/repo split', () => {
 		expect(parseRemoteUrl('git@github.com:justonename')).toBeUndefined();
+	});
+});
+
+describe('parseRemoteUrl — multi-host', () => {
+	it('detects gitlab.com', () => {
+		expect(parseRemoteUrl('git@gitlab.com:group/project.git')).toEqual({
+			host: 'gitlab',
+			hostname: 'gitlab.com',
+			owner: 'group',
+			repo: 'project',
+		});
+	});
+
+	it('detects bitbucket.org', () => {
+		expect(parseRemoteUrl('https://bitbucket.org/team/repo.git')).toEqual({
+			host: 'bitbucket',
+			hostname: 'bitbucket.org',
+			owner: 'team',
+			repo: 'repo',
+		});
+	});
+
+	it('returns github-enterprise when host is in enterprise config', () => {
+		const out = parseRemoteUrl('git@git.acme.corp:team/repo.git', {
+			enterpriseHosts: { 'git.acme.corp': 'github-enterprise' },
+		});
+		expect(out?.host).toBe('github-enterprise');
+		expect(out?.baseUrl).toBe('https://git.acme.corp/api/v3');
+	});
+
+	it('returns gitlab when host is in enterprise config as gitlab', () => {
+		const out = parseRemoteUrl('git@git.acme.corp:team/repo.git', {
+			enterpriseHosts: { 'git.acme.corp': 'gitlab' },
+		});
+		expect(out?.host).toBe('gitlab');
+		expect(out?.baseUrl).toBe('https://git.acme.corp');
+	});
+
+	it('returns bitbucket for enterprise host without baseUrl', () => {
+		const out = parseRemoteUrl('git@bitbucket.acme.corp:team/repo.git', {
+			enterpriseHosts: { 'bitbucket.acme.corp': 'bitbucket' },
+		});
+		expect(out?.host).toBe('bitbucket');
+		expect(out?.baseUrl).toBeUndefined();
+	});
+
+	it('returns unknown for unrecognized host', () => {
+		const out = parseRemoteUrl('git@example.com:team/repo.git', {});
+		expect(out?.host).toBe('unknown');
+		expect(out?.owner).toBe('team');
+		expect(out?.repo).toBe('repo');
 	});
 });
 

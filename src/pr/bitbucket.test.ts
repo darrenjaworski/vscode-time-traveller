@@ -108,13 +108,27 @@ describe('BitbucketProvider', () => {
 	it('matches bitbucket host', async () => {
 		const { BitbucketProvider } = await import('./bitbucket');
 		const provider = new BitbucketProvider();
-		expect(provider.matches({ host: 'bitbucket', owner: 'team', repo: 'repo' })).toBe(true);
+		expect(
+			provider.matches({
+				host: 'bitbucket',
+				hostname: 'bitbucket.org',
+				owner: 'team',
+				repo: 'repo',
+			}),
+		).toBe(true);
 	});
 
 	it('does not match other hosts', async () => {
 		const { BitbucketProvider } = await import('./bitbucket');
 		const provider = new BitbucketProvider();
-		expect(provider.matches({ host: 'github', owner: 'o', repo: 'r' })).toBe(false);
+		expect(
+			provider.matches({
+				host: 'github',
+				hostname: 'github.com',
+				owner: 'o',
+				repo: 'r',
+			}),
+		).toBe(false);
 	});
 
 	it('has correct provider id', async () => {

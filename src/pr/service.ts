@@ -20,11 +20,18 @@ async function resolveRemote(repoRoot: string): Promise<RemoteInfo | undefined> 
 		repo as unknown as { state?: { remotes?: Array<{ fetchUrl?: string; pushUrl?: string }> } }
 	)?.state?.remotes;
 	if (!remotes) return undefined;
+
+	const cfg = vscode.workspace.getConfiguration('timeTraveller');
+	const enterpriseHosts = cfg.get<Record<string, 'github-enterprise' | 'gitlab' | 'bitbucket'>>(
+		'enterprise.hosts',
+		{},
+	);
+
 	for (const remote of remotes) {
 		const url = remote.fetchUrl ?? remote.pushUrl;
 		if (!url) continue;
-		const info = parseRemoteUrl(url);
-		if (info) return info;
+		const info = parseRemoteUrl(url, { enterpriseHosts });
+		if (info && info.host !== 'unknown') return info;
 	}
 	return undefined;
 }

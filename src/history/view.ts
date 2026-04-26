@@ -283,7 +283,8 @@ async function resolveRemoteCommitUrl(repoRoot: string, sha: string): Promise<st
 		const url = remote.fetchUrl ?? remote.pushUrl;
 		if (!url) continue;
 		const info = parseRemoteUrl(url);
-		if (info) return buildCommitUrl(info, sha);
+		// Only build URLs for recognized hosts, not 'unknown'
+		if (info && info.host !== 'unknown') return buildCommitUrl(info, sha);
 	}
 	return undefined;
 }
