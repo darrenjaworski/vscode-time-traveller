@@ -175,4 +175,73 @@ describe('lookupPRs', () => {
 		expect(result.size).toBe(0);
 		expect(cache.get('sha1')).toBe(null);
 	});
+
+	it('case 8: multiple PRs, one merged → merged one wins', async () => {
+		const cache = new PRCache();
+		const unmergedPR = pr(100, false);
+		const mergedPR = pr(101, true);
+		const fetchPRsForCommit = vi.fn().mockResolvedValue([unmergedPR, mergedPR]);
+
+		const input: PRLookupInput = {
+			repoRoot: '/repo',
+			shas: ['sha1'],
+			cache,
+		};
+
+		const result = await lookupPRs(input, {
+			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
+			fetchPRsForCommit,
+			getToken: vi.fn().mockResolvedValue('token123'),
+		});
+
+		expect(result.get('sha1')).toEqual(mergedPR);
+	});
+
+	it('case 9: multiple PRs, none merged → first PR wins', async () => {
+		const cache = new PRCache();
+		const pr1 = pr(100, false);
+		const pr2 = pr(101, false);
+		const fetchPRsForCommit = vi.fn().mockResolvedValue([pr1, pr2]);
+
+		const input: PRLookupInput = {
+			repoRoot: '/repo',
+			shas: ['sha1'],
+			cache,
+		};
+
+		const result = await lookupPRs(input, {
+			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
+			fetchPRsForCommit,
+			getToken: vi.fn().mockResolvedValue('token123'),
+		});
+
+		expect(result.get('sha1')).toEqual(pr1);
+	});
+
+	it('case 10: mixed cached + uncached → cached short-circuits, only uncached shas fetched', async () => {
+		const cache = new PRCache();
+		const cachedPR = pr(1, false);
+		const fetchedPR = pr(2, false);
+		cache.set('sha1', cachedPR);
+
+		const fetchPRsForCommit = vi.fn().mockResolvedValue([fetchedPR]);
+
+		const input: PRLookupInput = {
+			repoRoot: '/repo',
+			shas: ['sha1', 'sha2'],
+			cache,
+		};
+
+		const result = await lookupPRs(input, {
+			resolveGitHubRemote: vi.fn().mockResolvedValue({ host: 'github', owner: 'o', repo: 'r' }),
+			fetchPRsForCommit,
+			getToken: vi.fn().mockResolvedValue('token123'),
+		});
+
+		// Only sha2 should have been fetched (sha1 was cached)
+		expect(fetchPRsForCommit).toHaveBeenCalledTimes(1);
+		expect(fetchPRsForCommit).toHaveBeenCalledWith(expect.objectContaining({ sha: 'sha2' }));
+		expect(result.get('sha1')).toEqual(cachedPR);
+		expect(result.get('sha2')).toEqual(fetchedPR);
+	});
 });
