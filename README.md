@@ -34,7 +34,9 @@ Open the chat panel, mention `@historian`, and ask in plain English. The partici
 | `/since <ref>`      | Focus on everything that landed in this file since `<ref>`                   |
 | `/author <pattern>` | Filter to one author's commits on the file                                   |
 
-**GitHub PR context** — when the repo has a GitHub remote, `@historian` looks up the PRs associated with cited commits and folds the PR title + body into the prompt. Signs in via VS Code's built-in GitHub auth **silently** — you're never prompted during a chat. Unauthenticated calls still work for public repos (rate-limited to 60/hr/IP). GitLab, Bitbucket, and Enterprise GitHub are not yet supported.
+**Pull request context** — when the repo has a GitHub, GitLab, or Bitbucket remote, `@historian` looks up the merge requests / pull requests associated with cited commits and folds the PR title + body into the prompt. GitHub auth is silent via VS Code's built-in provider; GitLab and Bitbucket require personal tokens (see Configuration below). Unauthenticated calls still work for public repos (rate-limited).
+
+**Tool calling** — by default, the model can invoke tools to pull evidence on demand instead of pre-loading everything in the prompt. This keeps responses lean and lets the model ask for precisely what it needs (commit details, diffs, blame, file history, PR data). Toggle it off via `timeTraveller.chat.toolCalling` if your model doesn't support tool use, or set `timeTraveller.chat.maxToolRounds` to cap the number of tool-call iterations (default 5).
 
 **From the File History panel** — every commit row has two chat-triggering actions:
 
@@ -111,6 +113,17 @@ An in-memory LRU cache keyed by `(repo, file, page)` makes repeat views instant;
 
 Requires VS Code `^1.95.0` for the stable chat participant + `vscode.lm` APIs.
 
+### Supported hosts
+
+`@historian` works with repos on:
+
+- **GitHub** (github.com) — uses VS Code's built-in GitHub auth
+- **GitLab** (gitlab.com) — uses VS Code's GitLab Workflow extension if installed, otherwise requires `timeTraveller.gitlabToken`
+- **Bitbucket Cloud** (bitbucket.org) — requires `timeTraveller.bitbucketAppPassword`
+- **GitHub Enterprise** — configure via `timeTraveller.enterprise.hosts` and `timeTraveller.gheToken`
+
+For private repos, see Configuration below.
+
 ---
 
 ## Commands
@@ -137,13 +150,31 @@ History-panel per-row actions aren't listed in the palette — they're only mean
 
 ## Configuration
 
-| Setting                                     | Default | Description                                                                                                                     |
-| ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `timeTraveller.defaultBaseline`             | `HEAD`  | Default git ref to diff against when no baseline is picked. Pin it to `origin/main` for a steady workspace-wide PR-review view. |
-| `timeTraveller.codeLens.enabled`            | `true`  | Show the "Ask @historian" CodeLens above each changed hunk.                                                                     |
-| `timeTraveller.hover.enabled`               | `true`  | Show the last-touching-commit hover on changed lines.                                                                           |
-| `timeTraveller.chat.maxBlameEvidenceTokens` | `4000`  | Soft cap on characters of patch/diff evidence per query. Lower it when hitting model context limits.                            |
-| `timeTraveller.pr.enabled`                  | `true`  | Fetch GitHub PR context for cited commits. Disable to keep queries fully local.                                                 |
+**Chat & Evidence:**
+
+| Setting                                     | Default | Description                                                                                                                                   |
+| ------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timeTraveller.chat.maxBlameEvidenceTokens` | `4000`  | Soft cap on characters of patch/diff evidence per query. Lower it when hitting model context limits.                                          |
+| `timeTraveller.chat.toolCalling`            | `true`  | Allow the model to invoke tools to pull evidence on demand (diffs, blame, file history, PRs). Disable if your model doesn't support tool use. |
+| `timeTraveller.chat.maxToolRounds`          | `5`     | Maximum number of tool-call iterations per query (1–20).                                                                                      |
+
+**Pull request context & authentication:**
+
+| Setting                              | Default | Description                                                                                                       |
+| ------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| `timeTraveller.pr.enabled`           | `true`  | Fetch PR/MR context for cited commits. Disable to keep queries fully local.                                       |
+| `timeTraveller.gitlabToken`          | (empty) | Personal access token for GitLab MR lookups (when GitLab Workflow extension is not installed). Treat as a secret. |
+| `timeTraveller.bitbucketAppPassword` | (empty) | Bitbucket Cloud app password for PR lookups. Treat as a secret.                                                   |
+| `timeTraveller.gheToken`             | (empty) | Personal access token for GitHub Enterprise Server PR lookups. Treat as a secret.                                 |
+| `timeTraveller.enterprise.hosts`     | `{}`    | Map of enterprise hostnames to provider types for self-hosted instances (reserved for future configuration).      |
+
+**Diff baseline & UI:**
+
+| Setting                          | Default | Description                                                                                                                     |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `timeTraveller.defaultBaseline`  | `HEAD`  | Default git ref to diff against when no baseline is picked. Pin it to `origin/main` for a steady workspace-wide PR-review view. |
+| `timeTraveller.codeLens.enabled` | `true`  | Show the "Ask @historian" CodeLens above each changed hunk.                                                                     |
+| `timeTraveller.hover.enabled`    | `true`  | Show the last-touching-commit hover on changed lines.                                                                           |
 
 **Language model selection:** Use VS Code's chat model picker (gear icon in the chat panel) to choose which LLM `@historian` uses. The extension works with any provider exposed via the `vscode.lm` API (GitHub Copilot, Claude for VS Code, Gemini for VS Code, etc.).
 
