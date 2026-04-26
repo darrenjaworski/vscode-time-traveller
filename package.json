@@ -423,16 +423,6 @@
           "default": true,
           "description": "Show the commit that last touched a line as a hover tooltip, but only on lines that are changed relative to the current baseline."
         },
-        "timeTraveller.chat.modelFamily": {
-          "type": "string",
-          "default": "gpt-4o",
-          "description": "Preferred language-model family for @historian, passed to `vscode.lm.selectChatModels`. Leave empty to accept whatever the provider offers. Examples: `gpt-4o`, `claude-3.5-sonnet`."
-        },
-        "timeTraveller.chat.modelVendor": {
-          "type": "string",
-          "default": "copilot",
-          "description": "Preferred language-model vendor. `copilot` matches GitHub Copilot Chat; leave empty to accept any vendor."
-        },
         "timeTraveller.chat.maxBlameEvidenceTokens": {
           "type": "number",
           "default": 4000,

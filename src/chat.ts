@@ -68,19 +68,7 @@ export function registerHistorianParticipant(baseline: BaselineStore): vscode.Di
 			if (uri) stream.reference(uri);
 		}
 
-		const cfg = vscode.workspace.getConfiguration('timeTraveller.chat');
-		const vendor = cfg.get<string>('modelVendor') || undefined;
-		const family = cfg.get<string>('modelFamily') || undefined;
-		const selector: Record<string, string> = {};
-		if (vendor) selector.vendor = vendor;
-		if (family) selector.family = family;
-		const [model] = await vscode.lm.selectChatModels(selector);
-		if (!model) {
-			stream.markdown(
-				'No language model is available. Install GitHub Copilot Chat or another provider that exposes `vscode.lm`, then try again.',
-			);
-			return {};
-		}
+		const model = request.model;
 
 		const messages: vscode.LanguageModelChatMessage[] = [
 			vscode.LanguageModelChatMessage.User(systemPrompt()),
