@@ -103,4 +103,51 @@ describe('ListFileHistoryTool', () => {
 
 		expect(mockLogFile).toHaveBeenCalledWith('/repo', 'src/test.ts', 50);
 	});
+
+	it('filters history by author when author is provided', async () => {
+		const mockLogFileByAuthor = vi.fn().mockResolvedValue([
+			{
+				sha: '1'.repeat(40),
+				shortSha: '1111111',
+				subject: 'Fix by alice',
+				authorName: 'alice',
+				authorEmail: 'alice@example.com',
+				authorDate: '2026-01-05T10:00:00Z',
+				body: 'Detail',
+				parents: 'xyz',
+			},
+			{
+				sha: '2'.repeat(40),
+				shortSha: '2222222',
+				subject: 'Update by alice',
+				authorName: 'alice',
+				authorEmail: 'alice@example.com',
+				authorDate: '2026-01-03T12:00:00Z',
+				body: 'Detail',
+				parents: 'xyz',
+			},
+		]);
+
+		const tool = new ListFileHistoryTool({
+			repoRoot: '/repo',
+			logFile: vi.fn(),
+			logFileByAuthor: mockLogFileByAuthor,
+		});
+
+		const result = await tool.invoke({
+			input: { relPath: 'src/foo.ts', author: 'alice', limit: 10 },
+			toolInvocationToken: {} as unknown,
+		} as unknown as vscode.LanguageModelToolInvocationOptions<{
+			relPath: string;
+			since?: string;
+			author?: string;
+			limit?: number;
+		}>);
+
+		const text = (result.content[0] as vscode.LanguageModelTextPart).value;
+		expect(text).toContain('Fix by alice');
+		expect(text).toContain('Update by alice');
+		expect(text).toContain('alice');
+		expect(mockLogFileByAuthor).toHaveBeenCalledWith('/repo', 'src/foo.ts', 'alice', 10);
+	});
 });
