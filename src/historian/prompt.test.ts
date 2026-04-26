@@ -245,6 +245,19 @@ describe('buildUserPrompt', () => {
 		const out = buildUserPrompt(baseEv(), 'default', '');
 		expect(out).not.toContain('Attached files');
 	});
+
+	it('emits a slim prompt when toolCalling is true', () => {
+		const ev = baseEv({
+			fileCommits: Array.from({ length: 20 }, (_, i) =>
+				recordToSummary(rec(String(i).padStart(40, '0'))),
+			),
+			commitDiffs: new Map([['x', 'huge diff']]),
+		});
+		const slim = buildUserPrompt(ev, 'default', '', NOW, { toolCalling: true });
+		expect(slim).not.toContain('huge diff');
+		const backtickLines = slim.split('\n').filter((l) => l.includes('`'));
+		expect(backtickLines.length).toBeLessThanOrEqual(5); // 5 commits max
+	});
 });
 
 describe('formatSmartTimestamp', () => {

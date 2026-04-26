@@ -18,6 +18,7 @@ const SYSTEM_PROMPT = [
 ].join('\n');
 
 const COMMIT_CAP = 12;
+const SLIM_COMMIT_CAP = 5; // For tool-calling mode, cap at 5 commits to keep prompt concise
 
 export function systemPrompt(): string {
 	return SYSTEM_PROMPT;
@@ -28,8 +29,10 @@ export function buildUserPrompt(
 	command: HistorianCommand,
 	userPrompt: string,
 	now: Date = new Date(),
+	options: { toolCalling?: boolean } = {},
 ): string {
 	const sections: string[] = [];
+	const isToolCallingMode = options.toolCalling === true;
 
 	const commitStory = isCommitStory(evidence, command);
 	sections.push(taskSection(command, userPrompt, commitStory));
@@ -48,16 +51,19 @@ export function buildUserPrompt(
 		sections.push(referencedCommitsSection(evidence.referencedCommits, now));
 	}
 
-	if (evidence.commitFiles && evidence.commitFiles.size > 0) {
-		sections.push(commitFilesSection(evidence));
-	}
+	// In tool-calling mode, skip files changed, diffs, and PRs to keep the prompt slim
+	if (!isToolCallingMode) {
+		if (evidence.commitFiles && evidence.commitFiles.size > 0) {
+			sections.push(commitFilesSection(evidence));
+		}
 
-	if (evidence.commitDiffs && evidence.commitDiffs.size > 0) {
-		sections.push(commitDiffsSection(evidence));
-	}
+		if (evidence.commitDiffs && evidence.commitDiffs.size > 0) {
+			sections.push(commitDiffsSection(evidence));
+		}
 
-	if (evidence.commitPRs && evidence.commitPRs.size > 0) {
-		sections.push(commitPRsSection(evidence));
+		if (evidence.commitPRs && evidence.commitPRs.size > 0) {
+			sections.push(commitPRsSection(evidence));
+		}
 	}
 
 	if (evidence.blameLines && evidence.blameLines.length > 0) {
@@ -65,7 +71,15 @@ export function buildUserPrompt(
 	}
 
 	if (evidence.fileCommits.length > 0) {
-		sections.push(fileLogSection(evidence, command, now, commitStory));
+		sections.push(
+			fileLogSection(
+				evidence,
+				command,
+				now,
+				commitStory,
+				isToolCallingMode ? SLIM_COMMIT_CAP : undefined,
+			),
+		);
 	}
 
 	if (evidence.attachedFiles && evidence.attachedFiles.length > 0) {
@@ -155,13 +169,14 @@ function fileLogSection(
 	command: HistorianCommand,
 	now: Date,
 	commitStory: boolean,
+	cap: number = COMMIT_CAP,
 ): string {
 	const header = commitStory
 		? 'Surrounding file history (newest → oldest), for context:'
 		: command === 'story'
 			? 'File history (newest → oldest):'
 			: 'Recent file history (newest → oldest):';
-	const capped = evidence.fileCommits.slice(0, COMMIT_CAP);
+	const capped = evidence.fileCommits.slice(0, cap);
 	return [header, ...capped.map((c) => formatCommitBlock(c, now))].join('\n\n');
 }
 
