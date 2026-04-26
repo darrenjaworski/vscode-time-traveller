@@ -78,7 +78,13 @@ Unit tests cover pure logic, but a lot of this extension lives at the `vscode` b
 - [ ] `/author <pattern>` filters to matching authors
 - [ ] Cited commits render as clickable references (opens the `git-time-traveller:?ref=<sha>` URI)
 - [ ] On a GitHub-backed repo with a signed-in session, responses cite `PR #<n>` for commits that have an associated PR; answers reference the PR title/body
-- [ ] Unauthenticated use against a public GitHub remote still surfaces PR titles (rate-limited); non-GitHub remotes skip the PR lookup silently without errors
+- [ ] Unauthenticated use against a public GitHub remote still surfaces PR titles (rate-limited)
+- [ ] On a GitLab-backed repo (with `timeTraveller.gitlabToken` set or GitLab Workflow extension installed), responses surface MR titles for cited commits
+- [ ] On a Bitbucket Cloud repo (with `timeTraveller.bitbucketAppPassword` set), responses surface PR titles for cited commits
+- [ ] On a GitHub Enterprise host listed in `timeTraveller.enterprise.hosts` with `timeTraveller.gheToken` set, PR lookups hit `https://<host>/api/v3` and surface PR titles
+- [ ] Hosts not matched by any provider (e.g. self-hosted Gitea) skip the PR lookup silently without errors
+- [ ] With `timeTraveller.chat.toolCalling` enabled (default), the model can invoke `timeTraveller_*` tools mid-response to pull commit details, diffs, blame, or PRs on demand; loop terminates within `maxToolRounds`
+- [ ] With `timeTraveller.chat.toolCalling` disabled (or model lacks tool-calling support), responses fall back to the single-shot pre-loaded prompt without errors
 - [ ] Follow-up suggestions appear after a response and are relevant to the command that produced it
 - [ ] No language model available → graceful error message, no unhandled rejection
 

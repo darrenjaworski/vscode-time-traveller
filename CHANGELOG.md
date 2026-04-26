@@ -6,11 +6,15 @@ All notable changes to this extension are documented here. The format follows [K
 
 ### Added (Tier C)
 
-- **Tool calling.** `@historian` now lets the model pull evidence on demand — commit details, blame, diffs, PR data — instead of relying on a pre-loaded prompt. Toggle via `timeTraveller.chat.toolCalling` (enabled by default).
+- **Tool calling.** `@historian` now lets the model pull evidence on demand — commit details, blame, diffs, PR data — instead of relying on a pre-loaded prompt. Six tools are registered (`searchCommits`, `getCommitDetails`, `getCommitDiff`, `getBlame`, `findPRsForCommit`, `listFileHistory`). Toggle via `timeTraveller.chat.toolCalling` (enabled by default); cap iterations via `timeTraveller.chat.maxToolRounds` (default 5).
 - **GitLab MR context** for repos with a GitLab remote. Supports personal access tokens via `timeTraveller.gitlabToken` or the GitLab Workflow extension.
 - **Bitbucket PR context** for repos with a Bitbucket Cloud remote. Requires `timeTraveller.bitbucketAppPassword` for authentication.
 - **GitHub Enterprise support** via `timeTraveller.enterprise.hosts` and `timeTraveller.gheToken`.
 - New settings: `timeTraveller.gitlabToken`, `timeTraveller.bitbucketAppPassword`, `timeTraveller.gheToken`, `timeTraveller.enterprise.hosts`, `timeTraveller.chat.toolCalling`, `timeTraveller.chat.maxToolRounds`.
+
+### Fixed
+
+- **`getCommitDetails` tool returned empty metadata.** The tool was wired with a stub `gitShow` that returned blank subject/body/author, so the model received placeholder data when asking about commits. Now wired to real `git log -1` + `git show --numstat`.
 
 ### Added
 
