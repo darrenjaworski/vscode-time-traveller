@@ -236,10 +236,26 @@ export class LanguageModelToolResult {
 	constructor(public content: LanguageModelTextPart[]) {}
 }
 
+export class LanguageModelToolCallPart {
+	constructor(
+		public readonly callId: string,
+		public readonly name: string,
+		public readonly input: object,
+	) {}
+}
+
+export class LanguageModelToolResultPart {
+	constructor(
+		public readonly callId: string,
+		public readonly content: LanguageModelTextPart[],
+	) {}
+}
+
 export const lm = {
 	selectChatModels: vi.fn(async () => [] as unknown[]),
 	registerTool: vi.fn((_name, _tool) => ({ dispose: () => {} })),
 	invokeTool: vi.fn(),
+	tools: [] as Array<{ name: string; description?: string; inputSchema?: object }>,
 };
 
 export const authentication = {

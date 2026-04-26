@@ -451,7 +451,7 @@ function makeCommitUri(evidence: Evidence, sha: string): vscode.Uri | undefined 
 	return makeTimeTravellerUri(folder.uri.fsPath, evidence.selection.relPath, sha);
 }
 
-interface ToolCallingLoopInputs {
+export interface ToolCallingLoopInputs {
 	model: vscode.LanguageModelChat;
 	evidence: Evidence;
 	command: HistorianCommand;
@@ -463,7 +463,7 @@ interface ToolCallingLoopInputs {
 	maxRounds: number;
 }
 
-async function runToolCallingLoop(inputs: ToolCallingLoopInputs): Promise<void> {
+export async function runToolCallingLoop(inputs: ToolCallingLoopInputs): Promise<void> {
 	const { model, evidence, command, request, messages, stream, token, tools, maxRounds } = inputs;
 
 	// Build slim prompt for tool-calling mode
