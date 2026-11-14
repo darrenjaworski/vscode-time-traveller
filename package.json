@@ -693,16 +693,16 @@
     "kitchen-sink": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run compile && npm run package"
   },
   "devDependencies": {
-    "@eslint/js": "^9.15.0",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.95.0",
-    "@vscode/vsce": "^3.2.0",
-    "eslint": "^9.15.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.3.3",
-    "typescript": "^5.5.4",
-    "typescript-eslint": "^8.15.0",
-    "vitest": "^2.1.5",
-    "vscode-uri": "^3.1.0"
+    "@vscode/vsce": "^4.1.1",
+    "eslint": "^10.15.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.10.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^4.1.12",
+    "vscode-uri": "^3.2.0"
   }
 }

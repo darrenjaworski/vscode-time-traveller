@@ -147,9 +147,9 @@ In `lookupPRs`, replace the old `resolveGitHubRemote` + raw fetch wiring with:
 
 ```typescript
 const remote = await deps.resolveRemote(input.repoRoot);
-if (!remote) return /* cache miss → null for all uncached */;
+if (!remote) return; /* cache miss → null for all uncached */
 const provider = pickProvider(remote, deps.providers);
-if (!provider) return /* same null-cache fallthrough */;
+if (!provider) return; /* same null-cache fallthrough */
 const token = await provider.getToken();
 // ...for each uncached sha: provider.fetchForCommit({ remote, sha, token })
 ```
@@ -797,10 +797,7 @@ export function registerTools(repoRoot: string): vscode.Disposable[] {
       'timeTraveller_getCommitDetails',
       new GetCommitDetailsTool({
         repoRoot,
-        gitShow: /* wire to src/git/cli.ts */ async (sha) =>
-          ({
-            /* ... */
-          }) as any,
+        gitShow: /* wire to src/git/cli.ts */ async (sha) => ({/* ... */}) as any,
       }),
     ),
   ];

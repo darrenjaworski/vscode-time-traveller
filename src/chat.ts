@@ -479,12 +479,10 @@ export async function runToolCallingLoop(inputs: ToolCallingLoopInputs): Promise
 	];
 
 	let roundCount = 0;
-	let allToolCalls: vscode.LanguageModelToolCallPart[] = [];
-
 	while (roundCount++ < maxRounds) {
 		const response = await model.sendRequest(userMessages, { tools }, token);
 
-		allToolCalls = [];
+		const allToolCalls: vscode.LanguageModelToolCallPart[] = [];
 		for await (const part of response.stream) {
 			if (part instanceof vscode.LanguageModelTextPart) {
 				stream.markdown(part.value);
