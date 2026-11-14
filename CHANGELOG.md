@@ -4,6 +4,8 @@ All notable changes to this extension are documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-14
+
 ### Added (Tier C)
 
 - **Tool calling.** `@historian` now lets the model pull evidence on demand — commit details, blame, diffs, PR data — instead of relying on a pre-loaded prompt. Six tools are registered (`searchCommits`, `getCommitDetails`, `getCommitDiff`, `getBlame`, `findPRsForCommit`, `listFileHistory`). Toggle via `timeTraveller.chat.toolCalling` (enabled by default); cap iterations via `timeTraveller.chat.maxToolRounds` (default 5).
@@ -32,6 +34,7 @@ All notable changes to this extension are documented here. The format follows [K
 - Removed `timeTraveller.chat.modelVendor` and `timeTraveller.chat.modelFamily` settings — use VS Code's chat model picker instead.
 - System prompt is now sent with proper System message role for better model instruction adherence.
 - Followup suggestions now work correctly (were broken in 1.0.0).
+- Update dependencies: ESLint 10, TypeScript 6, Vitest 4, Prettier 3.10, @vscode/vsce 4.
 
 ## [1.0.0] - 2026-04-21
 
