@@ -1,5 +1,8 @@
 # Git Time Traveller
 
+[![CI](https://github.com/darrenjaworski/vscode-time-traveller/actions/workflows/ci.yml/badge.svg)](https://github.com/darrenjaworski/vscode-time-traveller/actions/workflows/ci.yml)
+[![Release](https://github.com/darrenjaworski/vscode-time-traveller/actions/workflows/release.yml/badge.svg)](https://github.com/darrenjaworski/vscode-time-traveller/actions/workflows/release.yml)
+
 Ask **`@historian`** _why_ a line is the way it is — grounded in real commit history, not guesswork. Set any commit as your diff baseline and watch the gutter update live. Explore the story of a file — or any single commit — without leaving VS Code.
 
 git-blame meets narrative history, in one extension.
